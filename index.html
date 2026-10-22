@@ -277,7 +277,6 @@ ol.recap li::marker{font-family:var(--font-mono); color:var(--accent)}
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const STEP_NAMES = ['Inicio','Hueco','Premarco','Fijar','Puerta','Bolsas','Bolsa abajo','Bolsa arriba','Subir','Ajuste','Retirar'];
@@ -313,7 +312,22 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+function skyEnv(){
+  const s=new THREE.Scene(), R=50;
+  const geo=new THREE.SphereGeometry(R,48,24), pos=geo.attributes.position, cols=[];
+  const top=new THREE.Color(0xa9c6e6), hor=new THREE.Color(0xf3efe8), gnd=new THREE.Color(0x77706a);
+  for(let i=0;i<pos.count;i++){
+    const y=pos.getY(i)/R;
+    const c=y>0?hor.clone().lerp(top,Math.pow(y,0.55)):hor.clone().lerp(gnd,Math.min(1,-y*4));
+    cols.push(c.r,c.g,c.b);
+  }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  s.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
+  const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(2.5,16,8),new THREE.MeshBasicMaterial({color:new THREE.Color(1,.95,.86).multiplyScalar(14)}));
+  sunDisc.position.set(-21,33,29); s.add(sunDisc);
+  return pmrem.fromScene(s,0.02).texture;
+}
+scene.environment = skyEnv();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 60);
 
 function applyTheme(){
@@ -449,6 +463,25 @@ function tapeTexture(){
   g.fillStyle='#c62020'; g.fillRect(0,58,512,6);
   const t=tex(c); t.wrapT=THREE.ClampToEdgeWrapping; return t;
 }
+function bagTexture(){
+  const S=512, c=mkCanvas(S), g=c.getContext('2d');
+  g.fillStyle='#d4591a'; g.fillRect(0,0,S,S);
+  // tejido de la lona
+  for(let i=0;i<S;i+=3){ g.fillStyle='rgba(0,0,0,.035)'; g.fillRect(i,0,1,S); g.fillRect(0,i,S,1); }
+  noiseFill(g,S,14);
+  // costura soldada perimetral
+  const m=34; g.fillStyle='rgba(90,25,0,.28)';
+  g.fillRect(0,0,S,m); g.fillRect(0,S-m,S,m); g.fillRect(0,0,m,S); g.fillRect(S-m,0,m,S);
+  g.strokeStyle='rgba(60,15,0,.45)'; g.lineWidth=3; g.strokeRect(m,m,S-2*m,S-2*m);
+  g.setLineDash([10,8]); g.strokeStyle='rgba(255,220,190,.35)'; g.lineWidth=2; g.strokeRect(m/2,m/2,S-m,S-m); g.setLineDash([]);
+  // rotulado
+  g.save(); g.translate(S/2,S/2); g.rotate(-Math.PI/2);
+  g.fillStyle='#1b1410'; g.textAlign='center';
+  g.font='bold 54px Arial'; g.fillText('AIR WEDGE',0,-10);
+  g.font='28px Arial'; g.fillText('máx. 135 kg · 0–50 mm',0,36);
+  g.restore();
+  return tex(c);
+}
 /* UVs en metros para que la textura cuadre entre piezas */
 function worldUV(geo,size){
   const p=geo.attributes.position, n=geo.attributes.normal, uv=geo.attributes.uv;
@@ -475,7 +508,7 @@ const M = {
   steel: new THREE.MeshStandardMaterial({color:0x9aa0a6, metalness:.9, roughness:.3}),
   rubber:new THREE.MeshStandardMaterial({color:0x151617, roughness:.62, envMapIntensity:.5}),
   glass: new THREE.MeshPhysicalMaterial({color:0xf3f5f5, roughness:.35, transmission:0, transparent:true, opacity:.92, envMapIntensity:1}),
-  bag:   new THREE.MeshPhysicalMaterial({color:0xd25a18, roughness:.55, sheen:.4, sheenColor:0xffb070, envMapIntensity:.6}),
+  bag:   new THREE.MeshPhysicalMaterial({map:bagTexture(), roughness:.58, sheen:.5, sheenColor:0xffb070, sheenRoughness:.6, envMapIntensity:.6}),
   hose:  new THREE.MeshStandardMaterial({color:0x232527, roughness:.45}),
   tape:  new THREE.MeshStandardMaterial({map:tapeTexture(), roughness:.45, metalness:.3}),
   toolBody:new THREE.MeshStandardMaterial({color:0x2a2d31, roughness:.55}),
@@ -525,6 +558,31 @@ function wallPiece(x0,x1,y0,y1){
 wallPiece(-WALL_X,-W0/2,0,WALL_H);
 wallPiece(W0/2,WALL_X,0,WALL_H);
 wallPiece(-W0/2,W0/2,H0,WALL_H);
+// canto de forjado encima del muro
+{
+  const g=new THREE.BoxGeometry(2*WALL_X,0.26,T+0.08); g.translate(0,WALL_H+0.13,0.0); worldUV(g,2);
+  const slab=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:conc.map,bumpMap:conc.bump,bumpScale:.8,color:0xd9d6d0,roughness:.92,envMapIntensity:.3}));
+  slab.castShadow=true; slab.receiveShadow=true; scene.add(slab);
+}
+// solera del interior, más clara y lisa que el exterior
+{
+  const g=new THREE.PlaneGeometry(2*WALL_X,3.3); g.rotateX(-Math.PI/2);
+  g.attributes.uv.array.forEach((v,i,a)=>a[i]=v*3);
+  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:conc.map,color:0xe6e1d8,roughness:.8,envMapIntensity:.35}));
+  m.position.set(0,0.0006,-T/2-1.65); m.receiveShadow=true; scene.add(m);
+}
+// sombras de contacto en la unión pared-suelo
+{
+  const c=mkCanvas(8,256), g=c.getContext('2d'), gr=g.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,'rgba(0,0,0,.5)'); gr.addColorStop(.3,'rgba(0,0,0,.16)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr; g.fillRect(0,0,8,256);
+  const aoMat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+  const strip=(w,d,x,z,ry)=>{ const g=new THREE.PlaneGeometry(w,d); g.rotateX(-Math.PI/2); const m=new THREE.Mesh(g,aoMat); m.rotation.y=ry; m.position.set(x,0.0015,z); m.renderOrder=1; scene.add(m); };
+  const L=WALL_X-W0/2, cx=(WALL_X+W0/2)/2;
+  strip(L,0.4,-cx,T/2+0.2,0); strip(L,0.4,cx,T/2+0.2,0);
+  strip(L,0.4,-cx,-T/2-0.2,Math.PI); strip(L,0.4,cx,-T/2-0.2,Math.PI);
+  strip(T,0.14,-W0/2+0.07,0,Math.PI/2); strip(T,0.14,W0/2-0.07,0,-Math.PI/2);
+}
 // pared del fondo (interior de la vivienda)
 const back=new THREE.Mesh(new THREE.PlaneGeometry(8,WALL_H),M.plaster); back.position.set(0,WALL_H/2,-3.4); back.receiveShadow=true; scene.add(back);
 const side=new THREE.Mesh(new THREE.PlaneGeometry(3.3,WALL_H),M.plaster); side.rotation.y=Math.PI/2; side.position.set(-1.9,WALL_H/2,-1.77); scene.add(side);
@@ -791,6 +849,9 @@ function makeBag(hosePts,bulbPos,bulbLying){
   const bh=new THREE.Group(); bh.position.set(...bulbPos); if(bulbLying) bh.rotation.z=Math.PI/2.3; g.add(bh);
   const bulb=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),M.rubber); bulb.scale.set(0.034,0.05,0.034); bulb.castShadow=true; bh.add(bulb);
   const valve=cyl(0.007,0.03,M.inox); valve.position.y=0.06; bh.add(valve);
+  const rel=cyl(0.006,0.012,M.inox,'x'); rel.position.set(0.012,0.072,0); bh.add(rel);
+  const relCap=cyl(0.0065,0.006,M.rubber,'x'); relCap.position.set(0.021,0.072,0); bh.add(relCap);
+  const inlet=cyl(0.005,0.02,M.inox); inlet.position.y=-0.058; bh.add(inlet);
   scene.add(g);
   return {g,pillow,bulb};
 }
@@ -810,6 +871,26 @@ const drill=new THREE.Group(); scene.add(drill);
   const bat=rbox(0.11,0.05,0.075,0.008,M.toolAccent,-0.2,-0.17,0); drill.add(bat);
   const batTop=rbox(0.1,0.012,0.068,0.004,M.toolBody,-0.2,-0.142,0); drill.add(batTop);
   drill.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+}
+{
+  const fd=drill.clone(true); fd.rotation.set(Math.PI/2,0,0.5); fd.position.set(1.05,0.038,0.85); scene.add(fd);
+  const pine=new THREE.MeshStandardMaterial({color:0xb48d5c, roughness:.88, envMapIntensity:.3});
+  const kc=mkCanvas(512), kg=kc.getContext('2d'); kg.fillStyle='#b48f62'; kg.fillRect(0,0,512,512);
+  for(let i=0;i<512;i+=6){ kg.fillStyle='rgba(80,55,25,.07)'; kg.fillRect(0,i,512,2); }
+  noiseFill(kg,512,16);
+  kg.fillStyle='rgba(225,205,160,.85)'; kg.fillRect(0,236,512,40);
+  kg.fillStyle='#2a2018'; kg.font='bold 40px Arial'; kg.fillText('▲▲  FRÁGIL',150,140);
+  const kraft=new THREE.MeshStandardMaterial({map:tex(kc), roughness:.95, envMapIntensity:.3});
+  const foam=new THREE.MeshStandardMaterial({color:0xf2f2ee, roughness:.9});
+  const pal=new THREE.Group();
+  [-0.35,0,0.35].forEach(z=>pal.add(box(1.2,0.022,0.1,pine,0,0.011,z)));
+  [-0.5,0,0.5].forEach(x=>[-0.35,0,0.35].forEach(z=>pal.add(box(0.145,0.078,0.1,pine,x,0.061,z))));
+  [-0.35,0,0.35].forEach(z=>pal.add(box(1.2,0.022,0.145,pine,0,0.111,z)));
+  for(let i=0;i<5;i++) pal.add(box(1.2,0.022,0.1,pine,0,0.133,-0.35+i*0.175));
+  pal.add(box(1.12,0.012,0.72,kraft,0,0.15,0));
+  const cb=box(1.05,0.012,0.68,kraft,0.03,0.162,0.01); cb.rotation.y=0.04; pal.add(cb);
+  [[-0.5,-0.3],[0.48,0.28],[0.45,-0.3]].forEach(([x,z])=>pal.add(box(0.12,0.05,0.12,foam,x,0.193,z)));
+  pal.position.set(2.25,0,0.62); pal.rotation.y=0.12; scene.add(pal);
 }
 
 drill.visible=false; frameScrews.forEach(sc=>sc.visible=false);
@@ -879,6 +960,27 @@ const KEYS=[
   [[2.6,1.6,4.2],[0,1.05,0.15]],
 ];
 
+/* ---------- oclusión ambiental en tiempo real (ordenador) ---------- */
+let composer=null;
+if(!SMALL){
+  Promise.all([
+    import('three/addons/postprocessing/EffectComposer.js'),
+    import('three/addons/postprocessing/RenderPass.js'),
+    import('three/addons/postprocessing/GTAOPass.js'),
+    import('three/addons/postprocessing/OutputPass.js'),
+  ]).then(([E,R,G,O])=>{
+    const c=new E.EffectComposer(renderer);
+    c.setPixelRatio(renderer.getPixelRatio()); c.setSize(W,H);
+    c.addPass(new R.RenderPass(scene,camera));
+    const ao=new G.GTAOPass(scene,camera,W,H);
+    ao.blendIntensity=0.85;
+    ao.updateGtaoMaterial({radius:0.3, distanceExponent:1.6, thickness:1, scale:1, samples:16});
+    ao.updatePdMaterial({lumaPhi:10, depthPhi:2, normalPhi:3, radius:6, rings:2, samples:16});
+    c.addPass(ao); c.addPass(new O.OutputPass());
+    composer=c;
+  }).catch(()=>{ composer=null; });
+}
+
 /* ---------- sizing ---------- */
 let W=1,H=1,mobile=false;
 function resize(){
@@ -889,6 +991,7 @@ function resize(){
   if(mobile) camera.clearViewOffset();
   else camera.setViewOffset(W,H,-Math.min(W*0.14,230),0,W,H);
   camera.updateProjectionMatrix();
+  if(composer) composer.setSize(W,H);
 }
 addEventListener('resize',resize); resize();
 
@@ -1012,7 +1115,7 @@ function loop(){
   tNow = reduced ? tTarget : tNow+(tTarget-tNow)*0.1;
   if(Math.abs(tTarget-tNow)<0.0005) tNow=tTarget;
   update(tNow);
-  renderer.render(scene,camera);
+  if(composer) composer.render(); else renderer.render(scene,camera);
   requestAnimationFrame(loop);
 }
 loop();
