@@ -749,7 +749,7 @@ const DY0=SH, DY1=Hf-B;
 // hoja
 const TOPGAP=0.010;            // 5 mm reales en el lado de bisagras (dibujado al doble)
 const SAG=0.018;               // +6 mm reales en el lado de la manivela cuando está descolgada
-const LW=2*XI-0.006, LY0=SH+0.022, LH=Hf-B-TOPGAP-LY0, LT=0.065;
+const LW=2*XI-0.006, LY0=SH+0.006, LH=Hf-B-TOPGAP-LY0, LT=0.065;
 const sagG=new THREE.Group(); sagG.matrixAutoUpdate=false; frameG.add(sagG);
 const leafPivot=new THREE.Group(); leafPivot.position.set(0,-(Hf-B-TOPGAP),0); sagG.add(leafPivot);
 const F=-0.002;                 // cara exterior de la hoja (local)
@@ -968,6 +968,9 @@ drill.visible=false; frameScrews.forEach(sc=>sc.visible=false);
 const hlMat=()=>new THREE.MeshBasicMaterial({color:0xff6a1a, transparent:true, opacity:0, depthWrite:false, toneMapped:false, side:THREE.DoubleSide});
 const floorHL=new THREE.Mesh(new THREE.BoxGeometry(1,1,0.004),hlMat()); floorHL.renderOrder=6; scene.add(floorHL);
 const headHL=new THREE.Mesh(new THREE.BoxGeometry(1,1,0.004),hlMat()); headHL.renderOrder=6; scene.add(headHL);
+// cuña oscura en la parte alta de la hoja: hace que la raya de arriba se vea en diagonal
+const wedgeGeo=new THREE.BufferGeometry(); wedgeGeo.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(9),3));
+const wedge=new THREE.Mesh(wedgeGeo,new THREE.MeshBasicMaterial({color:0x0e0f10, side:THREE.DoubleSide})); wedge.frustumCulled=false; frameG.add(wedge);
 const sagGeo=new THREE.BufferGeometry(); sagGeo.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(18),3));
 const sagHL=new THREE.Mesh(sagGeo,hlMat()); sagHL.renderOrder=6; sagHL.frustumCulled=false; frameG.add(sagHL);
 function updateHL(p){
@@ -1234,7 +1237,9 @@ function update(t){
   diagMat.opacity=S.diag;
 
   leafPivot.rotation.y=0;
-  { const k=S.rack*SAG/LW; sagG.matrix.set(1,0,0,-XI, -k,1,0,Hf-B-TOPGAP, 0,0,1,PIV_Z, 0,0,0,1); sagG.matrixWorldNeedsUpdate=true; }
+  sagG.matrix.set(1,0,0,-XI, 0,1,0,Hf-B-TOPGAP, 0,0,1,PIV_Z, 0,0,0,1); sagG.matrixWorldNeedsUpdate=true;
+  { const k=S.rack*SAG, x0=-XI+0.003, x1=XI-0.003, y=Hf-B-TOPGAP+0.0002, z=PIV_Z+F+0.0006;
+    const a=wedgeGeo.attributes.position.array; a.set([x0,y,z, x1,y,z, x1,y-k,z]); wedgeGeo.attributes.position.needsUpdate=true; wedge.visible=k>0.0003; }
   frameG.updateMatrixWorld(true);
 
   // bolsas
