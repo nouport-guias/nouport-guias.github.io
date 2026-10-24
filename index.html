@@ -334,7 +334,7 @@ body.stepper .swipe-hint{display:none}
     <h2>Hasta que la raya quede igual</h2>
     <p>Sigue jugando con las dos hasta que el marco toque el premarco en esas dos esquinas y la raya de arriba mida lo mismo en los dos lados. En las esquinas de las bolsas quedan 10 mm.</p>
     <p>No infles de golpe una sola bolsa: ve corrigiendo poco a poco.</p>
-    <p class="note">Los huecos están dibujados más grandes de lo real para que se vean. Las etiquetas marcan los milímetros reales.</p>
+    <p class="note">Los huecos están dibujados más grandes de lo real para que se vean.</p>
   </div></section>
 
   <section class="step"><div class="card">
@@ -974,7 +974,7 @@ applyModel('MH3');
 const level=new THREE.Group(); frameG.add(level);
 level.position.set(-0.05,Hf-B/2,DF/2+0.012);
 {
-  const alu=new THREE.MeshStandardMaterial({color:0xc9ced3, metalness:.85, roughness:.35});
+  const alu=new THREE.MeshStandardMaterial({color:0xf2c21b, metalness:.1, roughness:.45});
   level.add(rbox(0.6,0.045,0.022,0.003,alu));
   [-1,1].forEach(sx=>level.add(rbox(0.03,0.049,0.026,0.006,M.rubber,sx*0.3,0,0)));
   level.add(box(0.075,0.024,0.004,M.rubber,0,0,0.011));
@@ -993,7 +993,7 @@ level.position.set(-0.05,Hf-B/2,DF/2+0.012);
   const a=level.clone(true); a.position.set(0,0,0); a.rotation.z=Math.PI/2; lvlFront.add(a);
   lvlFront.position.set(W0/2-A/2,1.15,ZC+DP/2+0.012);
   const b=level.clone(true); b.position.set(0,0,0); b.rotation.z=Math.PI/2; const w=new THREE.Group(); w.rotation.y=-Math.PI/2; w.add(b); lvlInner.add(w);
-  lvlInner.position.set(Wi/2+0.012,1.15,ZC);
+  lvlInner.position.set(Wi/2-0.012,1.15,ZC);
   [a,b].forEach(l=>{ const bb=l.getObjectByName('bubble'); if(bb) bb.position.x=0; });
   lvlFront.visible=lvlInner.visible=false;
 }
@@ -1108,6 +1108,38 @@ function updateShims(pIn,pOut){
   });
 }
 
+/* ---------- esquinas: círculos (lleno = toca el premarco, vacío = hueco) y raya en diagonal ---------- */
+const markMat=()=>new THREE.MeshBasicMaterial({color:0xff6a1a, transparent:true, opacity:0, depthTest:false, depthWrite:false, toneMapped:false});
+const ringMat=()=>new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0, depthTest:false, depthWrite:false, toneMapped:false});
+const corners=[0,1,2,3].map(()=>{
+  const g=new THREE.Group();
+  const dot=new THREE.Mesh(new THREE.CircleGeometry(0.022,32),markMat());
+  const ring=new THREE.Mesh(new THREE.RingGeometry(0.022,0.03,40),ringMat());
+  const edge=new THREE.Mesh(new THREE.RingGeometry(0.03,0.034,40),new THREE.MeshBasicMaterial({color:0x1b1d20, transparent:true, opacity:0, depthTest:false, depthWrite:false, toneMapped:false}));
+  [dot,ring,edge].forEach(m=>{ m.renderOrder=20; g.add(m); });
+  g.userData={dot,ring,edge}; scene.add(g); return g;
+});
+const diagLine=new THREE.Mesh(new THREE.PlaneGeometry(1,0.007),markMat()); diagLine.renderOrder=19; scene.add(diagLine);
+function updateCorners(){
+  const op=S.cornerOp?S.cornerOp():0;
+  const pts=[];
+  S.C.forEach(([sd,y],i)=>{
+    const gap=sd<0?Math.max(0,frameEdgeX(-1,y)+Wi/2):Math.max(0,Wi/2-frameEdgeX(1,y));
+    const touch=clamp(1-gap/(G*0.12));                 // 1 = tocando
+    const c=corners[i], u=c.userData;
+    c.position.set(sd*(Wi/2-gap/2), y, FZ+0.01); c.visible=op>0.01;
+    u.dot.material.opacity=op*touch; u.ring.material.opacity=op; u.edge.material.opacity=op*0.6;
+    u.ring.material.color.set(touch>0.5?0xff6a1a:0xffffff);
+    pts.push({p:c.position,touch});
+  });
+  // raya recta entre las dos esquinas que tocan (arriba bisagras y abajo manivela)
+  const A=pts[0], Bp=pts[3], t=Math.min(A.touch,Bp.touch);
+  const dx=Bp.p.x-A.p.x, dy=Bp.p.y-A.p.y, L=Math.hypot(dx,dy);
+  diagLine.position.set((A.p.x+Bp.p.x)/2,(A.p.y+Bp.p.y)/2,FZ+0.009);
+  diagLine.scale.set(L,1,1); diagLine.rotation.z=Math.atan2(dy,dx);
+  diagLine.material.opacity=op*t*0.9; diagLine.visible=op*t>0.01;
+}
+
 /* ---------- zonas resaltadas (parpadeo suave) ---------- */
 const hlMat=()=>new THREE.MeshBasicMaterial({color:0xff6a1a, transparent:true, opacity:0, depthWrite:false, toneMapped:false, side:THREE.DoubleSide});
 const floorHL=new THREE.Mesh(new THREE.BoxGeometry(1,1,0.004),hlMat()); floorHL.renderOrder=6; scene.add(floorHL);
@@ -1179,46 +1211,36 @@ label('2 garras arriba','hot',()=>{ const v=new THREE.Vector3(0.3,H0+0.08,ZC); p
 label('Tirante','',()=>{ const v=new THREE.Vector3(-0.2,0.08+S.tirY,ZC+0.02+S.tirZ); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.3,.5)) + sub(S.p[4],.78,.82)*(1-sub(S.p[4],.95,1)));
 label('Huecos para las garras','hot',()=>[W0/2+0.2,1.4,T/2+0.01],()=>sub(S.p[3],.2,.4)*(1-sub(S.p[4],0,.15)));
 label('Falcado con mortero','hot',()=>[W0/2+0.2,0.85,T/2+0.01],()=>sub(S.p[4],.15,.3)*(1-sub(S.p[4],.4,.45)));
+label('Burbuja centrada: a plomo','hot',()=>[W0/2-A/2,1.21,ZC+DP/2+0.03],()=>S.zoomF>0.6?S.zoomF:0);
+label('Burbuja centrada: a plomo','hot',()=>[Wi/2-0.03,1.21,ZC],()=>S.zoomI>0.6?S.zoomI:0);
 label('A plomo: cara frontal','hot',()=>[W0/2-A/2,1.55,ZC+DP/2+0.03],()=>S.lvF);
-label('A plomo: cara interior','hot',()=>[Wi/2+0.02,1.55,ZC],()=>S.lvI);
-label('5 mm','',()=>[-Wi/2+G/4,1.45,FZ],()=>sub(S.p[5],.6,1)*(1-S.p[9]));
-label('5 mm','',()=>[ Wi/2-G/4,1.45,FZ],()=>sub(S.p[5],.6,1)*(1-S.p[9]));
+label('A plomo: cara interior','hot',()=>[Wi/2-0.02,1.55,ZC],()=>S.lvI);
 {
   const cornerOp=()=>sub(S.p[9],.3,.8)*(1-S.p[15]);
   const C=[[-1,Hf-0.04],[1,Hf-0.04],[-1,0.07],[1,0.07]];
-  C.forEach(([sd,y])=>{
-    const gap=()=> sd<0 ? Math.max(0,frameEdgeX(-1,y)+Wi/2) : Math.max(0,Wi/2-frameEdgeX(1,y));
-    const pos=()=>[sd*(Wi/2-gap()/2)-sd*0.0, y+(y>1?0:0), FZ];
-    label('','',pos,()=>cornerOp()*(mm(gap())>=1?1:0),()=>mm(gap())+' mm');
-    label('Tocando','hot',pos,()=>cornerOp()*(mm(gap())<1?1:0));
-  });
+  S.cornerOp=cornerOp; S.C=C;
 }
 label('','quiet',()=>[Wi/2,BAG_TOP_Y+BAG_H/2+0.03,BAG_Z+0.03],()=>S.p[9]*(1-sub(S.p[12],.2,.4))*(1-sub(S.infTop,.9,1)),()=>S.infTop>0.98?'Bolsa inflada':S.infTop>0.02?'Inflando…':'Bolsa desinflada');
 label('','quiet',()=>[-Wi/2,BAG_BOT_Y+BAG_H/2+0.03,BAG_Z+0.03],()=>S.p[9]*(1-sub(S.p[12],.2,.4))*(1-sub(S.infBot,.9,1)),()=>S.infBot>0.98?'Bolsa inflada':S.infBot>0.02?'Inflando…':'Bolsa desinflada');
 SHIMS.forEach(([sd,y,mm],i)=>{
-  label((sd>0?'':'← ')+mm+' mm'+(sd>0?' →':''),'hot',()=>[sd*(Wi/2-0.15),y,ZC+0.09],()=>sub(S.p[15],i*0.13+0.12,i*0.13+0.3)*(1-sub(S.p[16],.2,.5)));
+  label((sd>0?'':'← ')+'Cuña'+(sd>0?' →':''),'hot',()=>[sd*(Wi/2-0.15),y,ZC+0.09],()=>sub(S.p[15],i*0.13+0.12,i*0.13+0.3)*(1-sub(S.p[16],.2,.5)));
   const el=labels[labels.length-1].el; el.style.background=SHIM_KIND[mm].col; el.style.borderColor=SHIM_KIND[mm].col; el.style.color=SHIM_KIND[mm].txt;
 });
-label('0 mm · sin cuña','quiet',()=>[-Wi/2+0.13,Hf-0.06,FZ],()=>sub(S.p[15],.75,1)*(1-sub(S.p[16],.2,.5)));
-label('0 mm · sin cuña','quiet',()=>[Wi/2-0.13,0.06,FZ],()=>sub(S.p[15],.75,1)*(1-sub(S.p[16],.2,.5)));
 label('Pera de inflado','quiet',()=>[Wi/2+0.14,BAG_TOP_Y-0.76,BAG_Z+0.14],()=>sub(S.p[9],.5,1)*(1-sub(S.p[10],.5,.8)));
+label('Burbuja centrada: a nivel','hot',()=>{ const v=new THREE.Vector3(-0.05,Hf-B/2+0.05,DF/2+0.03); frameG.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[14],.7,1)*(1-S.p[15]));
 label('Holgura arriba','hot',()=>[0,Hi+0.05,FZ],()=>S.p[7]*(1-S.p[8]));
 label('Marco a ras de suelo','hot',()=>[0,0.03,FZ],()=>Math.max(S.p[6]*(1-S.p[7]), S.p[13]*(1-S.p[14])));
 {
   const bp=x=>()=>{ const v=new THREE.Vector3(x,LY0+0.17,DF/2+0.012); frameG.localToWorld(v); return [v.x,v.y,v.z]; };
   const bop=()=>Math.max(S.p[6]*(1-S.p[7]), S.p[8]*(1-S.p[9]), S.sp, S.p[13]*(1-S.p[14]));
-  label('','',bp(-XI+0.1),bop,()=>'Abajo bisagras 4 mm');
-  label('','',bp(XI-0.1),bop,()=>{ const m=Math.round(4*(1-S.rack)); return m<1?'Abajo manivela: toca':'Abajo manivela '+m+' mm'; });
 }
 label('← empuja','hot',()=>[Wi/2-0.1,BAG_TOP_Y,BAG_Z+0.08],()=>S.pushTop);
 label('empuja →','hot',()=>[-Wi/2+0.1,BAG_BOT_Y,BAG_Z+0.08],()=>S.pushBot);
 label('Aprieta la pera','quiet',()=>[-Wi/2-0.22,0.11,BAG_Z+0.33],()=>sub(S.p[10],.05,.2)*(1-sub(S.p[10],.8,1)));
-label('↑ la hoja sube','hot',()=>{ const v=new THREE.Vector3(XI-0.2,Hf-B-0.2,DF/2+0.012); frameG.localToWorld(v); return [v.x,v.y,v.z]; },()=>S.up);
+label('↑ la hoja sube','hot',()=>{ const v=new THREE.Vector3(XI-0.36,Hf-B-0.2,DF/2+0.012); frameG.localToWorld(v); return [v.x,v.y,v.z]; },()=>S.up);
 
 const gapPos=(x)=>()=>{ const v=new THREE.Vector3(x,Hf-B-0.1,DF/2+0.012); frameG.localToWorld(v); return [v.x,v.y,v.z]; };
 const gapOp=()=>sub(S.p[5],.6,1)*(1-sub(S.p[15],0,.3));
-label('','',gapPos(-XI+0.09),gapOp,()=>'Bisagras 5 mm');
-label('','',gapPos(XI-0.09),gapOp,()=>'Manivela '+Math.round(5+6*S.rack)+' mm');
 
 /* ---------- camera keys per step: [pos, target] ---------- */
 const KEYS=[
@@ -1236,7 +1258,7 @@ const KEYS=[
   [[0.9,2.0,1.3],[0.36,1.84,0.06]],
   [[0.15,1.2,4.0],[0,1.12,0]],
   [[0.42,0.2,0.8],[0.1,0.03,0.06]],
-  [[0.12,1.98,1.75],[0.06,1.96,0.05]],
+  [[-0.02,2.03,0.62],[-0.045,2.04,0.06]],
   [[0.3,1.12,3.9],[0,1.08,0.05]],
   [[2.6,1.6,4.2],[0,1.05,0.15]],
 ];
@@ -1415,7 +1437,7 @@ function update(t){
   if(mobile){ const d=camPos.distanceTo(camTgt); camPos.sub(camTgt).multiplyScalar(clamp(2.9/d,0.72,1.15)).add(camTgt); }
   camera.position.copy(camPos); camera.lookAt(camTgt);
   // pantalla partida mientras se inflan las bolsas
-  S.split = t>8.5 && t<11.55;
+  S.split = t>9.5 && t<12.55;
   S.sp = sub(p[10],0,.3)*(1-sub(p[13],0,.3));
   camTop.position.set(0,1.98,mobile?1.5:1.25); camTop.lookAt(0,1.9,0.05);
   camBot.position.set(0,0.34,mobile?1.5:1.25); camBot.lookAt(0,0.24,0.05);
@@ -1445,6 +1467,14 @@ function update(t){
   const tq=sub(p[4],0.8,1);
   S.tirY=-tq*0.04; S.tirZ=tq*0.9;
   tirante.position.set(0,S.tirY,S.tirZ); tirante.rotation.y=tq*0.3; tirante.visible=tq<0.98;
+  { // acercar la cámara a la burbuja mientras se usa el nivel
+    const wF=S.lvF*(1-sub(p[4],.55,.62)), wI=S.lvI*(1-p[5]);
+    const d=mobile?0.36:0.3;
+    if(wF>0.001){ v3.set(W0/2-A/2,1.15,ZC+DP/2+0.03); camPos.lerp(new THREE.Vector3(v3.x+0.04,v3.y+0.04,v3.z+d),wF); camTgt.lerp(v3,wF); }
+    if(wI>0.001){ v3.set(Wi/2-0.03,1.15,ZC); camPos.lerp(new THREE.Vector3(v3.x-d,v3.y+0.04,v3.z+0.06),wI); camTgt.lerp(v3,wI); }
+    S.zoomF=wF; S.zoomI=wI;
+    camera.position.copy(camPos); camera.lookAt(camTgt);
+  }
 
   // pasos 4 y 6
   const infBot=sub(p[10],0.05,0.5), infTop=infBot, extra=sub(p[12],0.1,0.9);
@@ -1503,6 +1533,7 @@ function update(t){
   });
 
   updateHL(p);
+  updateCorners();
   updateShims(p[15],p[16]);
 
   // labels
