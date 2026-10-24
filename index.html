@@ -133,6 +133,8 @@ ol.recap li::marker{font-family:var(--font-mono); color:var(--accent)}
 .load-pill{position:fixed; z-index:4; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
   background:var(--surface); color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:5px 12px; font-family:var(--font-mono); font-size:11px; pointer-events:none}
 body.stepper .load-pill{bottom:auto; top:calc(var(--top) + 46px)}
+.splitting:not(.stepper) .picker{opacity:0; pointer-events:none}
+.picker{transition:opacity .3s}
 .pane-tag{position:fixed; z-index:3; display:none; font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
   background:rgba(20,22,25,.72); color:#fff; padding:4px 8px; border-radius:4px; pointer-events:none}
 .pane-split{position:fixed; z-index:3; display:none; height:3px; background:var(--surface); box-shadow:0 0 0 1px var(--line); pointer-events:none}
@@ -310,15 +312,15 @@ body.stepper .swipe-hint{display:none}
   <section class="step"><div class="card">
     <p class="eyebrow">Paso 9 de 14</p>
     <h2>Infla primero la bolsa de abajo</h2>
-    <p>Empieza por la bolsa de abajo, en el lado de las bisagras. Aprieta la pera despacio: la bolsa se hincha, llena la holgura y empuja el marco hacia el lado de la manivela.</p>
+    <p>Empieza por la bolsa de abajo, en el lado de las bisagras. Aprieta la pera despacio: la bolsa se hincha y empuja el marco hacia el lado contrario. Abajo, en el lado de la manivela, el marco se junta al premarco.</p>
     <p>Pantalla partida: arriba, el cabecero; abajo, el umbral. El marco entero se despega del suelo y sube con la hoja.</p>
   </div></section>
 
   <section class="step"><div class="card">
     <p class="eyebrow">Paso 10 de 14</p>
     <h2>Ahora la bolsa de arriba</h2>
-    <p>Pasa a la bolsa de arriba, en el lado de la cerradura. Al inflarla empuja hacia el lado de las bisagras.</p>
-    <p>Con las dos empujando en sentidos contrarios, el marco sube un poco más. Arriba el hueco con el premarco se cierra y, como la hoja va colgada del marco, la raya del lado de la manivela empieza a igualarse.</p>
+    <p>Pasa a la bolsa de arriba, en el lado de la cerradura. Al inflarla empuja el marco hacia el lado contrario: arriba, en el lado de las bisagras, el marco se junta al premarco.</p>
+    <p>Al juntarse el marco en esas dos esquinas, en diagonal, la hoja sube: la raya del lado de la manivela empieza a igualarse. En las esquinas de las bolsas quedan 10 mm.</p>
   </div></section>
 
   <section class="step"><div class="card">
@@ -338,7 +340,8 @@ body.stepper .swipe-hint{display:none}
   <section class="step"><div class="card">
     <p class="eyebrow">Paso 13 de 14</p>
     <h2>Mira arriba: todo ajustado</h2>
-    <p>Acércate arriba. El marco ha subido cerca del premarco y la raya entre marco y hoja mide lo mismo en los dos lados. Si no lo está, infla o desinfla un poco la bolsa que haga falta.</p>
+    <p>El marco queda tocando el premarco en dos esquinas en diagonal (arriba en el lado de las bisagras y abajo en el de la manivela), con 10 mm en las esquinas de las bolsas. La raya entre marco y hoja ya mide lo mismo en los dos lados.</p>
+    <p>Si no es así, infla o desinfla un poco la bolsa que haga falta.</p>
   </div></section>
 
   <section class="step"><div class="card">
@@ -358,8 +361,8 @@ body.stepper .swipe-hint{display:none}
   </div></section>
 </main>
 
-<div class="pane-tag" id="tagTop">Arriba · lado manivela</div>
-<div class="pane-tag" id="tagBot">Abajo · lado bisagras</div>
+<div class="pane-tag" id="tagTop">Arriba</div>
+<div class="pane-tag" id="tagBot">Abajo</div>
 <div class="pane-split" id="paneSplit"></div>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle">
   <div class="intro-card">
@@ -1061,10 +1064,11 @@ const smooth=x=>x*x*(3-2*x);
 const sub=(p,a,b)=>smooth(clamp((p-a)/(b-a)));
 const lerp=(a,b,t)=>a+(b-a)*t;
 let S={bx:-Wi/2+G,th:G/Hf,rack:1};
-const mRot=new THREE.Matrix4(), mA=new THREE.Matrix4(), mB=new THREE.Matrix4().makeTranslation(Wf/2,0,0);
+const mShear=new THREE.Matrix4(), mRot=new THREE.Matrix4(), mA=new THREE.Matrix4(), mB=new THREE.Matrix4().makeTranslation(Wf/2,0,0);
 const P=(t,i)=>smooth(clamp((t-i+0.9)/0.8));
 
-function frameEdgeX(side,y){ return S.bx + (side>0?Wf*Math.cos(S.th):0) - y*Math.sin(S.th); }
+// el marco se desplaza abajo (sb) y arriba (st) por separado: se descuadra hacia las esquinas que tocan
+function frameEdgeX(side,y){ return S.bx + (side>0?Wf:0) + (S.sb||0) + ((S.st||0)-(S.sb||0))*y/Hf; }
 const gapRight=y=>Wi/2-frameEdgeX(1,y);
 const gapLeft =y=>frameEdgeX(-1,y)+Wi/2;
 const mm=v=>Math.round(v/G*10);
@@ -1080,13 +1084,23 @@ label('2160 mm','',()=>[W0/2+0.16,1.08,DZ],()=>S.dims);
 label('Premarco galvanizado','quiet',()=>[W0/2-A/2,1.7,ZC+DP/2],()=>S.p[2]*(1-S.p[3]));
 label('Tirante','',()=>[0.15,0.05+S.tirY,ZC+0.03+S.tirZ],()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.45,.7)));
 label('Tacos a la pared','quiet',()=>[Wi/2,1.08,ZC],()=>sub(S.p[3],.2,.5)*(1-S.p[4]));
-label('5 mm','',()=>[-Wi/2+G/4,1.45,FZ],()=>sub(S.p[4],.6,1)*(1-S.p[14]));
-label('5 mm','',()=>[ Wi/2-G/4,1.45,FZ],()=>sub(S.p[4],.6,1)*(1-S.p[14]));
+label('5 mm','',()=>[-Wi/2+G/4,1.45,FZ],()=>sub(S.p[4],.6,1)*(1-S.p[8]));
+label('5 mm','',()=>[ Wi/2-G/4,1.45,FZ],()=>sub(S.p[4],.6,1)*(1-S.p[8]));
+{
+  const cornerOp=()=>sub(S.p[8],.3,.8)*(1-S.p[14]);
+  const C=[[-1,Hf-0.04],[1,Hf-0.04],[-1,0.07],[1,0.07]];
+  C.forEach(([sd,y])=>{
+    const gap=()=> sd<0 ? Math.max(0,frameEdgeX(-1,y)+Wi/2) : Math.max(0,Wi/2-frameEdgeX(1,y));
+    const pos=()=>[sd*(Wi/2-gap()/2)-sd*0.0, y+(y>1?0:0), FZ];
+    label('','',pos,()=>cornerOp()*(mm(gap())>=1?1:0),()=>mm(gap())+' mm');
+    label('Tocando','hot',pos,()=>cornerOp()*(mm(gap())<1?1:0));
+  });
+}
 label('','quiet',()=>[Wi/2,BAG_TOP_Y+BAG_H/2+0.03,BAG_Z+0.03],()=>S.p[8]*(1-sub(S.p[11],.2,.4))*(1-sub(S.infTop,.9,1)),()=>S.infTop>0.98?'Bolsa inflada':S.infTop>0.02?'Inflando…':'Bolsa desinflada');
 label('','quiet',()=>[-Wi/2,BAG_BOT_Y+BAG_H/2+0.03,BAG_Z+0.03],()=>S.p[8]*(1-sub(S.p[11],.2,.4))*(1-sub(S.infBot,.9,1)),()=>S.infBot>0.98?'Bolsa inflada':S.infBot>0.02?'Inflando…':'Bolsa desinflada');
 label('Pera de inflado','quiet',()=>[Wi/2+0.14,BAG_TOP_Y-0.76,BAG_Z+0.14],()=>sub(S.p[8],.5,1)*(1-sub(S.p[9],.5,.8)));
 label('','hot',()=>[0,Hi+0.05,FZ],()=>S.plumbLbl,()=>'Hueco arriba '+Math.round(5+10*S.rack)+' mm');
-label('','hot',()=>[-0.26,0.05,FZ],()=>S.plumbLbl,()=>S.rack>0.97?'A ras de suelo':'Subida '+Math.round(10*(1-S.rack))+' mm');
+label('','hot',()=>[0.02,0.05,FZ],()=>S.plumbLbl,()=>S.rack>0.97?'A ras de suelo':'Subida '+Math.round(10*(1-S.rack))+' mm');
 label('← empuja','hot',()=>[Wi/2-0.1,BAG_TOP_Y,BAG_Z+0.08],()=>S.pushTop);
 label('empuja →','hot',()=>[-Wi/2+0.1,BAG_BOT_Y,BAG_Z+0.08],()=>S.pushBot);
 label('Aprieta la pera','quiet',()=>[-Wi/2-0.22,0.11,BAG_Z+0.33],()=>sub(S.p[9],.05,.2)*(1-sub(S.p[9],.8,1)));
@@ -1293,8 +1307,8 @@ function update(t){
   // pantalla partida mientras se inflan las bolsas
   S.split = t>8.5 && t<11.55;
   S.sp = sub(p[9],0,.3)*(1-sub(p[12],0,.3));
-  camTop.position.set(0.62,2.02,1.3); camTop.lookAt(0.26,1.93,0.06);
-  camBot.position.set(-0.02,0.42,1.2); camBot.lookAt(-0.28,0.17,0.06);
+  camTop.position.set(0,1.98,mobile?1.5:1.25); camTop.lookAt(0,1.9,0.05);
+  camBot.position.set(0,0.34,mobile?1.5:1.25); camBot.lookAt(0,0.24,0.05);
 
   // paso 1: medidas + flexómetro
   S.dims=p[1]*(1-p[2]); M.lineA.opacity=S.dims; dimGroup.visible=S.dims>0.01;
@@ -1323,9 +1337,12 @@ function update(t){
   const inflate=Math.max(infBot,infTop);
   const rack=1-(0.25*sub(p[9],0.4,0.95)+0.3*sub(p[10],0.4,0.95)+0.45*extra);
   S.rack=rack; S.th=0; S.bx=-Wi/2+G/2; S.lift=(1-rack)*LIFT;
+  S.bf=sub(p[9],0.3,0.9); S.tf=sub(p[10],0.3,0.9);
+  S.sb=S.bf*G/2; S.st=-S.tf*G/2;            // abajo hacia la manivela, arriba hacia las bisagras
   const zIn=lerp(1.3,0,p[4]);
   frameG.visible=p[4]>0.001;
-  frameG.matrix.copy(mA.makeTranslation(S.bx,S.lift,ZC+zIn)).multiply(mRot.makeRotationZ(S.th)).multiply(mB);
+  mShear.set(1,(S.st-S.sb)/Hf,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1);
+  frameG.matrix.copy(mA.makeTranslation(S.bx+S.sb,S.lift,ZC+zIn)).multiply(mShear).multiply(mB);
   frameG.matrixWorldNeedsUpdate=true;
   S.contact=sub(p[4],.6,1)*(1-sub(p[9],0.35,0.55));
   S.gapLbl=sub(p[4],.6,1)*(1-sub(p[9],0.85,1));
@@ -1411,10 +1428,12 @@ function renderFrame(){
       pn.tag.style.display='block'; pn.tag.style.left=(rect.left+pn.x+10)+'px'; pn.tag.style.top=(rect.top+pn.y+10)+'px';
     }
     renderer.setScissorTest(false); renderer.setViewport(0,0,W,H);
+    document.body.classList.add('splitting');
     const p0=panes()[1];
     paneSplit.style.display='block'; paneSplit.style.left=(rect.left+p0.x)+'px'; paneSplit.style.width=p0.w+'px'; paneSplit.style.top=(rect.top+p0.y-1)+'px';
   } else {
     tagTop.style.display='none'; tagBot.style.display='none'; paneSplit.style.display='none';
+    document.body.classList.remove('splitting');
     if(composer) composer.render(); else renderer.render(scene,camera);
   }
 }
