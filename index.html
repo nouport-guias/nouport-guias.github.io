@@ -130,6 +130,9 @@ ol.recap li::marker{font-family:var(--font-mono); color:var(--accent)}
 }
 .pick-toggle[aria-expanded="true"]{border-color:var(--accent)}
 .pick-toggle:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.load-pill{position:fixed; z-index:4; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+  background:var(--surface); color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:5px 12px; font-family:var(--font-mono); font-size:11px; pointer-events:none}
+body.stepper .load-pill{bottom:auto; top:calc(var(--top) + 46px)}
 .fallback{position:fixed; inset:auto 0 0 0; z-index:4; padding:12px 16px; background:var(--accent); color:var(--on-accent); font-size:14px}
 
 @media (max-width:760px){
@@ -327,6 +330,7 @@ body.stepper .swipe-hint{display:block}
   </div></section>
 </main>
 
+<div class="load-pill" id="loadPill" role="status">Cargando texturas reales…</div>
 <div class="swipe-hint" id="swipeHint">← Desliza la imagen para cambiar de paso →</div>
 <section class="sheet" id="sheet" aria-label="Instrucciones">
   <div class="sheet-prog" id="sheetProg"></div>
@@ -347,6 +351,7 @@ body.stepper .swipe-hint{display:block}
 <script type="module">
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const STEP_NAMES = ['Inicio','Hueco','Premarco','Fijar','Puerta','Ras de suelo','Hueco arriba','Descuelgue','Bolsas','Bolsa abajo','Bolsa arriba','Subir','Ya no toca','Ajuste','Retirar'];
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -375,7 +380,7 @@ const SMALL=matchMedia('(max-width:760px)').matches;
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -399,7 +404,9 @@ function skyEnv(){
 scene.environment = skyEnv();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 60);
 
+let hdrReady=false;
 function applyTheme(){
+  if(hdrReady) return;
   const c = getComputedStyle(document.documentElement).getPropertyValue('--scene').trim() || '#dfe2e4';
   const col = new THREE.Color(c);
   scene.background = col; scene.fog = new THREE.Fog(col, 9, 20);
@@ -613,8 +620,8 @@ const XI=Wf/2-B;              // media luz de paso
 const SH=0.022;               // umbral
 
 /* ---------- floor + wall + room behind ---------- */
-const floorGeo=new THREE.PlaneGeometry(24,24); floorGeo.rotateX(-Math.PI/2);
-floorGeo.attributes.uv.array.forEach((v,i,a)=>a[i]=v*10);
+const floorGeo=new THREE.PlaneGeometry(60,60); floorGeo.rotateX(-Math.PI/2);
+floorGeo.attributes.uv.array.forEach((v,i,a)=>a[i]=v*24);
 const floor=new THREE.Mesh(floorGeo,M.floor); floor.receiveShadow=true; scene.add(floor);
 
 const WALL_X=3.6, WALL_H=2.85;
@@ -630,14 +637,16 @@ wallPiece(-W0/2,W0/2,H0,WALL_H);
 // canto de forjado encima del muro
 {
   const g=new THREE.BoxGeometry(2*WALL_X,0.26,T+0.08); g.translate(0,WALL_H+0.13,0.0); worldUV(g,2);
-  const slab=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:conc.map,bumpMap:conc.bump,bumpScale:.8,color:0xd9d6d0,roughness:.92,envMapIntensity:.3}));
+  M.slab=new THREE.MeshStandardMaterial({map:conc.map,bumpMap:conc.bump,bumpScale:.8,color:0xd9d6d0,roughness:.92,envMapIntensity:.3});
+  const slab=new THREE.Mesh(g,M.slab);
   slab.castShadow=true; slab.receiveShadow=true; scene.add(slab);
 }
 // solera del interior, más clara y lisa que el exterior
 {
   const g=new THREE.PlaneGeometry(2*WALL_X,3.3); g.rotateX(-Math.PI/2);
-  g.attributes.uv.array.forEach((v,i,a)=>a[i]=v*3);
-  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:conc.map,color:0xe6e1d8,roughness:.8,envMapIntensity:.35}));
+  { const uv=g.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)*2*WALL_X/3,uv.getY(i)*3.3/3); }
+  M.screed=new THREE.MeshStandardMaterial({map:conc.map,color:0xe6e1d8,roughness:.8,envMapIntensity:.35});
+  const m=new THREE.Mesh(g,M.screed);
   m.position.set(0,0.0006,-T/2-1.65); m.receiveShadow=true; scene.add(m);
 }
 // sombras de contacto en la unión pared-suelo
@@ -709,6 +718,8 @@ function screwHead(axis,r=0.0075){
 /* ---------- puerta monoblock: marco + umbral + hoja ---------- */
 const frameG=new THREE.Group(); frameG.matrixAutoUpdate=false; scene.add(frameG);
 frameG.add(rbox(B,Hf,DF,0.003,M.lacquer,-Wf/2+B/2,Hf/2,0));
+[-1,1].forEach(sx=>frameG.add(box(0.0012,Hf-0.004,0.02,M.polyam,sx*(Wf/2+0.0004),Hf/2,-0.004)));
+frameG.add(box(Wf-0.004,0.0012,0.02,M.polyam,0,Hf+0.0004,-0.004));
 frameG.add(rbox(B,Hf,DF,0.003,M.lacquer, Wf/2-B/2,Hf/2,0));
 frameG.add(rbox(Wf,B,DF,0.003,M.lacquer,0,Hf-B/2,0));
 // umbral de aluminio con rotura de puente térmico
@@ -1059,6 +1070,37 @@ const KEYS=[
   [[0.12,1.98,1.75],[0.06,1.96,0.05]],
   [[2.6,1.6,4.2],[0,1.05,0.15]],
 ];
+
+/* ---------- texturas fotográficas y cielo real (Poly Haven, CC0) ---------- */
+const ASSET='assets/';
+const loadPill=document.getElementById('loadPill');
+let pending=0;
+function loadDone(){ if(--pending<=0 && loadPill) loadPill.hidden=true; }
+const texL=new THREE.TextureLoader();
+function photoSet(name,rep,mats,opt={}){
+  pending++;
+  Promise.all(['_diff','_nor','_arm'].map(s=>texL.loadAsync(ASSET+name+s+'.jpg'))).then(([d,n,a])=>{
+    [d,n,a].forEach(t=>{ t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep); t.anisotropy=maxAniso; });
+    d.colorSpace=THREE.SRGBColorSpace;
+    mats.forEach(m=>{
+      m.map=d; m.normalMap=n; m.aoMap=a; m.roughnessMap=a; m.roughness=opt.rough??1; m.bumpMap=null;
+      m.color.set(opt.tint??0xffffff); m.normalScale.set(opt.ns??1,opt.ns??1); m.aoMapIntensity=opt.ao??1; m.needsUpdate=true;
+    });
+  }).catch(()=>{}).finally(loadDone);
+}
+photoSet('red_brick',0.96/1.4,[M.brick],{ns:1.2});
+photoSet('plaster',0.96/2.0,[M.render],{tint:0xe9e6e1});
+photoSet('screed',2.5/3,[M.floor],{tint:0xdcd9d4});
+photoSet('screed',2/3,[M.slab],{tint:0xeeebe6});
+photoSet('screed',1,[M.screed],{tint:0xffffff});
+pending++;
+new RGBELoader().load(ASSET+'sky.hdr',t=>{
+  t.mapping=THREE.EquirectangularReflectionMapping;
+  scene.environment=pmrem.fromEquirectangular(t).texture;
+  scene.background=t; scene.backgroundBlurriness=0.28; scene.backgroundIntensity=0.95;
+  scene.fog=null; hdrReady=true;
+  loadDone();
+},undefined,()=>loadDone());
 
 /* ---------- oclusión ambiental en tiempo real (ordenador) ---------- */
 let composer=null;
