@@ -998,10 +998,10 @@ function placa(x0,x1,y0,y1){
 
 /* ---------- puerta monoblock: marco + umbral + hoja ---------- */
 const frameG=new THREE.Group(); frameG.matrixAutoUpdate=false; scene.add(frameG);
-// perfil del marco: sección con resalte delantero y escalón (línea de sombra), extruida
+// perfil del marco: sección rectangular con cantos redondeados, cara exterior lisa
 function frameProfile(len){
   const h=B/2, d=DF/2, r=0.0015, st=0.006, sx=h-0.022;
-  const pts=[[-h,-d],[h,-d],[h,d-st],[sx,d-st],[sx,d],[-h,d]];
+  const pts=[[-h,-d],[h,-d],[h,d],[-h,d]];
   const sh=new THREE.Shape(); pts.forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z));
   const g=new THREE.ExtrudeGeometry(sh,{depth:len,bevelEnabled:true,bevelThickness:r,bevelSize:r,bevelSegments:2,curveSegments:2});
   g.rotateX(-Math.PI/2); return g;
@@ -1021,20 +1021,14 @@ frameG.add(box(2*XI,0.0012,0.012,M.polyam,0,Hf-B+0.0004,0.004));
 { const tz=-DF/2-0.005, tt=0.01, ox=W0/2+0.03, ix=Wf/2-0.032, top=H0+0.018;
   [-1,1].forEach(sd=>{ const m=rbox(ox-ix,top,tt,0.002,M.lacquer,sd*(ix+ox)/2,top/2,tz); frameG.add(m); });
   frameG.add(rbox(2*ox,top-(Hf-0.032),tt,0.002,M.lacquer,0,(top+Hf-0.032)/2,tz)); }
-// galce
-const SZ=-DF/2+0.01;
-frameG.add(box(0.016,Hf-B-SH,0.02,M.lacquer,-XI+0.008,SH+(Hf-B-SH)/2,SZ));
-frameG.add(box(0.016,Hf-B-SH,0.02,M.lacquer, XI-0.008,SH+(Hf-B-SH)/2,SZ));
-frameG.add(box(2*XI,0.016,0.02,M.lacquer,0,Hf-B-0.008,SZ));
-frameG.add(box(0.014,Hf-B-SH-0.004,0.002,M.rubber,-XI+0.008,SH+(Hf-B-SH)/2,-0.0245));
-frameG.add(box(0.014,Hf-B-SH-0.004,0.002,M.rubber, XI-0.008,SH+(Hf-B-SH)/2,-0.0245));
-frameG.add(box(2*XI,0.014,0.002,M.rubber,0,Hf-B-0.008,-0.0245));
+// (sin galce por dentro: la hoja abre hacia dentro y chocaría con él)
 // bisagras de aluminio (lado izquierdo)
 const PIV_Z=DF/2-0.002;
+const HINGE_Z=PIV_Z-0.002-0.065;   // cara interior de la hoja: ahí van las bisagras (la puerta abre hacia dentro)
 [0.28,1.1,Hf-0.3].forEach(y=>{
-  const h=cyl(0.011,0.13,M.lacquer); h.position.set(-XI,y,PIV_Z+0.009); frameG.add(h);
-  const ring=cyl(0.0115,0.004,M.polyam); ring.position.set(-XI,y,PIV_Z+0.009); frameG.add(ring);
-  [1,-1].forEach(s=>{ const cap=cyl(0.0105,0.004,M.inox); cap.position.set(-XI,y+s*0.067,PIV_Z+0.009); frameG.add(cap); });
+  const h=cyl(0.011,0.13,M.lacquer); h.position.set(-XI,y,HINGE_Z-0.009); frameG.add(h);
+  const ring=cyl(0.0115,0.004,M.polyam); ring.position.set(-XI,y,HINGE_Z-0.009); frameG.add(ring);
+  [1,-1].forEach(s=>{ const cap=cyl(0.0105,0.004,M.inox); cap.position.set(-XI,y+s*0.067,HINGE_Z-0.009); frameG.add(cap); });
 });
 // cerraderos (cerradura de tres puntos)
 [0.4,1.05,1.75].forEach(y=>frameG.add(box(0.002,y===1.05?0.22:0.12,0.022,M.inox,XI-0.001,y,0.01)));
@@ -1055,7 +1049,7 @@ const TOPGAP=0.010;            // 5 mm reales en el lado de bisagras (dibujado a
 const SAG=0.018;               // +6 mm reales en el lado de la manivela cuando está descolgada
 const LW=2*XI-0.006, LY0=SH+BOT, LH=Hf-B-TOPGAP-LY0, LT=0.065;
 const sagG=new THREE.Group(); sagG.matrixAutoUpdate=false; frameG.add(sagG);
-const leafPivot=new THREE.Group(); leafPivot.position.set(0,-(Hf-B-TOPGAP),0); sagG.add(leafPivot);
+const leafPivot=new THREE.Group(); leafPivot.position.set(0,-(Hf-B-TOPGAP),PIV_Z-HINGE_Z+0.009); sagG.add(leafPivot);
 const F=-0.002;                 // cara exterior de la hoja (local)
 const LX0=0.003, LX1=LX0+LW;    // cantos
 leafPivot.add(rbox(LW,LH,LT,0.004,M.lacquer,LX0+LW/2,LY0+LH/2,F-LT/2));
@@ -1863,7 +1857,7 @@ function update(t){
       if(f>0.42&&f<0.85) list[j].userData.cross.rotation.y=f*30;
     } }
   S.leafUp=0;
-  sagG.matrix.set(1,0,0,-XI, 0,1,0,Hf-B-TOPGAP, 0,0,1,PIV_Z, 0,0,0,1); sagG.matrixWorldNeedsUpdate=true;
+  sagG.matrix.set(1,0,0,-XI, 0,1,0,Hf-B-TOPGAP, 0,0,1,HINGE_Z-0.009, 0,0,0,1); sagG.matrixWorldNeedsUpdate=true;
   { // abajo la hoja "cae" en el lado de la manivela: tapa la raya en diagonal
     const k=S.rack*BOT, x0=-XI+0.003, x1=XI-0.003, y=LY0+0.0002, z=PIV_Z+F+0.0004;
     const a=botWedgeGeo.attributes.position.array; a.set([x0,y,z, x1,y-k,z, x1,y,z]); botWedgeGeo.attributes.position.needsUpdate=true;
