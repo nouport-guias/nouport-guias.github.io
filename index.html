@@ -267,7 +267,7 @@ body.stepper .swipe-hint{display:none}
   <section class="step"><div class="card">
     <p class="eyebrow">Paso 2 de 23</p>
     <h2>El premarco y sus garras</h2>
-    <p>El premarco es el bastidor de acero galvanizado que se fija a la obra, enrasado con la cara interior de la pared, y sobre el que después va la puerta. Trae garras soldadas, cuatro en cada lateral y dos en el cabecero, y dos tirantes, uno en medio y otro abajo, que lo mantienen en escuadra.</p>
+    <p>El premarco es el bastidor de acero galvanizado que se fija a la obra, enrasado con la cara interior de la pared, y sobre el que después va la puerta. Es un perfil tubular con una aleta en la cara que da a la vivienda, por eso es más ancho por dentro que por fuera. Trae garras soldadas, cuatro en cada lateral y dos en el cabecero, y dos tirantes que lo mantienen en escuadra: uno en medio y otro abajo, este último unido a los largueros con dos escuadras de refuerzo.</p>
     <p>No quites los tirantes hasta que el mortero haya fraguado.</p>
   </div></section>
 
@@ -302,7 +302,7 @@ body.stepper .swipe-hint{display:none}
   <section class="step"><div class="card">
     <p class="eyebrow">Paso 7 de 23</p>
     <h2>Quita los dos tirantes</h2>
-    <p>Espera a que el mortero haya fraguado del todo; según el mortero, puede ser hasta el día siguiente. Después quita el tirante del medio y el de abajo: ya no hacen falta y estorbarían al meter la puerta.</p>
+    <p>Espera a que el mortero haya fraguado del todo; según el mortero, puede ser hasta el día siguiente. Después quita el tirante del medio y el de abajo con sus dos escuadras: ya no hacen falta y estorbarían al meter la puerta.</p>
   </div></section>
 
   <section class="step"><div class="card">
@@ -824,15 +824,39 @@ const TAPE_Y=1.0, TAPE_Z=ZC+0.07;
 /* ---------- premarco ---------- */
 const premarco=new THREE.Group(); scene.add(premarco);
 const pmGroup=new THREE.Group(); pmGroup.position.z=ZC; premarco.add(pmGroup);
-pmGroup.add(rbox(A,H0,DP,0.003,M.galv,-W0/2+A/2,H0/2,0));
-pmGroup.add(rbox(A,H0,DP,0.003,M.galv, W0/2-A/2,H0/2,0));
-pmGroup.add(rbox(W0,A,DP,0.003,M.galv,0,H0-A/2,0));
+// perfil del premarco: tubo de acero galvanizado con una aleta en la cara de la vivienda (por eso es más ancho por dentro)
+const FL=0.018, ft=0.002, wt=0.0015;
+function premarcoProfile(len){
+  const h=A/2, d=DP/2;
+  const sh=new THREE.Shape();
+  [[-h-FL,d+0.0015],[h,d+0.0015],[h,-d],[-h,-d],[-h,d-ft],[-h-FL,d-ft]].forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z));
+  const hole=new THREE.Path(); [[-h+wt,d-wt],[h-wt,d-wt],[h-wt,-d+wt],[-h+wt,-d+wt]].forEach(([x,z],i)=>i?hole.lineTo(x,-z):hole.moveTo(x,-z)); sh.holes.push(hole);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:len,bevelEnabled:false}); g.rotateX(-Math.PI/2); return g;
+}
+function pmBar(len,mat=M.galv){ const m=new THREE.Mesh(premarcoProfile(len),mat); m.castShadow=m.receiveShadow=true; return m; }
+{ const jl=pmBar(H0); jl.position.set(-W0/2+A/2,0,0); pmGroup.add(jl);
+  const jr=pmBar(H0); jr.scale.x=-1; jr.position.set(W0/2-A/2,0,0); pmGroup.add(jr);
+  const hg=premarcoProfile(W0-2*A); hg.rotateZ(-Math.PI/2); const hd=new THREE.Mesh(hg,M.galv); hd.position.set(-W0/2+A,H0-A/2,0); hd.castShadow=hd.receiveShadow=true; pmGroup.add(hd); }
+// escuadra de refuerzo: triángulo con taladros de aligeramiento y tacos de goma en los extremos
+function escuadra(L){
+  const sh=new THREE.Shape(); sh.moveTo(0,0); sh.lineTo(L,0); sh.lineTo(0.035,0.035); sh.lineTo(0,L); sh.lineTo(0,0);
+  sh.moveTo(0,0); sh.lineTo(L,0); sh.lineTo(0,L); sh.closePath();
+  const tri=new THREE.Shape([new THREE.Vector2(0,0),new THREE.Vector2(L,0),new THREE.Vector2(0,L)]);
+  const big=new THREE.Path(); big.absellipse(L*0.24,L*0.24,L*0.11,L*0.075,0,Math.PI*2,false,-Math.PI/4); tri.holes.push(big);
+  [[L*0.56,L*0.1],[L*0.1,L*0.56]].forEach(([x,y])=>{ const c=new THREE.Path(); c.absarc(x,y,L*0.045,0,Math.PI*2,false); tri.holes.push(c); });
+  const inner=new THREE.Path(); // vaciado del alma, dejando un nervio a lo largo de la hipotenusa
+  const g=new THREE.Group();
+  const plate=new THREE.Mesh(new THREE.ExtrudeGeometry(tri,{depth:0.004,bevelEnabled:false}),M.steel); plate.position.z=-0.002; plate.castShadow=true; g.add(plate);
+  const rib=box(Math.hypot(L,L)*0.86,0.012,0.022,M.steel,L/2,L/2,0); rib.rotation.z=-Math.PI/4; g.add(rib);
+  g.add(box(0.035,0.006,0.03,M.rubber,L-0.02,-0.003,0)); g.add(box(0.006,0.035,0.03,M.rubber,-0.003,L-0.02,0));
+  return g;
+}
 const tirante=new THREE.Group(); pmGroup.add(tirante);
-tirante.add(box(Wi,0.006,0.04,M.galv,0,0.045,0));
-tirante.add(box(0.03,0.03,0.04,M.galv,-Wi/2+0.015,0.06,0));
-tirante.add(box(0.03,0.03,0.04,M.galv, Wi/2-0.015,0.06,0));
+{ const bg=premarcoProfile(Wi); bg.rotateZ(Math.PI/2); const bar=new THREE.Mesh(bg,M.galv); bar.position.set(Wi/2,A/2,0); bar.castShadow=bar.receiveShadow=true; tirante.add(bar);
+  const eL=escuadra(0.3); eL.position.set(-Wi/2,A,0); tirante.add(eL);
+  const eR=escuadra(0.3); eR.scale.x=-1; eR.position.set(Wi/2,A,0); tirante.add(eR); }
 const tirante2=new THREE.Group(); pmGroup.add(tirante2);
-tirante2.add(box(Wi,0.006,0.04,M.galv,0,1.06,0));
+tirante2.add(box(Wi,0.02,0.04,M.galv,0,1.06,0));
 tirante2.add(box(0.03,0.03,0.04,M.galv,-Wi/2+0.015,1.06,0));
 tirante2.add(box(0.03,0.03,0.04,M.galv, Wi/2-0.015,1.06,0));
 const anchors=[];
@@ -1336,7 +1360,7 @@ function diagMM(sign){
 label('Premarco galvanizado','quiet',()=>{ const v=new THREE.Vector3(W0/2-A/2,1.75,ZC+DP/2); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>S.p[2]*(1-S.p[3]));
 label('4 garras por lado','hot',()=>{ const v=new THREE.Vector3(W0/2+0.08,0.85,ZC); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.5,.7)));
 label('2 garras arriba','hot',()=>{ const v=new THREE.Vector3(0.3,H0+0.08,ZC); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.5,.7)));
-label('Tirante de abajo','',()=>{ const v=new THREE.Vector3(-0.2,0.08+S.tirY,ZC+0.02+S.tirZ); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.3,.5)) + sub(S.p[7],0,.1)*(1-sub(S.p[7],.6,.8)));
+label('Tirante y escuadras','',()=>{ const v=new THREE.Vector3(-0.2,0.08+S.tirY,ZC+0.02+S.tirZ); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.3,.5)) + sub(S.p[7],0,.1)*(1-sub(S.p[7],.6,.8)));
 label('Tirante del medio','',()=>{ const v=new THREE.Vector3(-0.2,1.1,ZC+0.02); premarco.localToWorld(v); return [v.x,v.y,v.z]; },()=>sub(S.p[2],.5,1)*(1-sub(S.p[3],.3,.5)) + sub(S.p[7],0,.1)*(1-sub(S.p[7],.25,.4)));
 label('Huecos para las garras','hot',()=>[W0/2+0.2,1.4,T/2+0.01],()=>sub(S.p[3],.2,.4)*(1-sub(S.p[4],0,.1)));
 label('Falcado con mortero','hot',()=>[W0/2+0.2,0.85,T/2+0.01],()=>sub(S.p[4],.3,.5)*(1-sub(S.p[5],0,.2)));
