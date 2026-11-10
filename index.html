@@ -231,6 +231,111 @@ body.stepper .sheet{
   font-family:var(--font-mono); font-size:11px; padding:4px 10px; border-radius:20px; pointer-events:none; transition:opacity .4s; display:none}
 body.stepper .swipe-hint{display:none}
 @media (prefers-reduced-motion: reduce){ .hint::after{animation:none} .rail button span,.rail button b{transition:none} }
+
+/* ===== Diseño v2: interfaz (no afecta a la escena 3D) ===== */
+:root{
+  --bg:#eceef0; --surface:#ffffff; --surface-2:#f4f5f6; --ink:#14171a; --muted:#5d6872; --line:#dfe3e7;
+  --accent:#f39200; --accent-ink:#9c5400; --on-accent:#1b1205; --brand:#f39200;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 1px rgba(16,20,24,.04),0 2px 6px rgba(16,20,24,.05),0 12px 32px rgba(16,20,24,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1214; --surface:#181c20; --surface-2:#1f2429; --ink:#eef1f3; --muted:#9ba6af; --line:#2b3238;
+    --accent:#f5a020; --accent-ink:#f5a64a; --on-accent:#1b1205;
+    --shadow:0 1px 1px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1214; --surface:#181c20; --surface-2:#1f2429; --ink:#eef1f3; --muted:#9ba6af; --line:#2b3238;
+  --accent:#f5a020; --accent-ink:#f5a64a; --on-accent:#1b1205;
+  --shadow:0 1px 1px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+}
+body{-webkit-font-smoothing:antialiased}
+
+/* fichas */
+.card{border-radius:var(--radius); border-color:var(--line); padding:26px 26px 24px; gap:14px; box-shadow:var(--shadow)}
+.eyebrow{color:var(--accent-ink); font-weight:500}
+.step-ey{display:flex; align-items:baseline; gap:8px; letter-spacing:.04em}
+.step-ey .n{font-family:var(--font-display); font-weight:700; font-size:30px; line-height:.9; color:var(--ink); letter-spacing:0}
+.step-ey .of{color:var(--muted); font-size:12px}
+.step-ey .ph{margin-left:auto; font-size:11px; letter-spacing:.08em; padding:4px 9px; border-radius:999px; background:color-mix(in srgb, var(--accent) 16%, var(--surface)); color:var(--accent-ink)}
+h2{font-size:32px; line-height:1.02}
+.card p{color:color-mix(in srgb, var(--ink) 88%, var(--muted)); line-height:1.6}
+.card p strong{color:var(--ink)}
+.card p.note{font-size:13.5px; border-top:1px dashed var(--line); padding-top:12px}
+ol.recap{gap:6px; padding-left:24px}
+ol.recap li::marker{color:var(--accent-ink); font-weight:500}
+.shim-key{padding:10px 12px; background:var(--surface-2); border-radius:var(--radius-sm); gap:6px}
+.shim-key i{width:26px; height:12px; border-radius:3px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.sect{padding:10px 10px 8px; background:var(--surface-2); border-radius:var(--radius-sm)}
+.hint::after{background:var(--accent)}
+
+/* etiquetas de la escena */
+.lbl{font-size:11.5px; padding:4px 9px 4px 8px; border-radius:7px; border:0; background:var(--surface); color:var(--ink);
+  box-shadow:0 1px 2px rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.12); display:flex; align-items:center; gap:6px}
+.lbl::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); flex:none}
+.lbl.hot{background:var(--accent); color:var(--on-accent); font-weight:600}
+.lbl.hot::before{background:var(--on-accent)}
+.lbl.quiet{color:var(--muted)}
+.lbl.quiet::before{background:var(--muted)}
+
+/* barra lateral de pasos (escritorio) */
+.rail{top:calc(env(safe-area-inset-top,0px) + 22px); transform:none; gap:0; padding:10px 12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  max-height:calc(100vh - 300px); overflow:visible}
+.rail li{position:relative}
+.rail-ph{font-family:var(--font-mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); text-align:right; padding:6px 0 3px; margin-top:3px; border-top:1px solid var(--line)}
+.rail-ph:first-child{border-top:0; margin-top:0}
+.rail button{height:9px; padding:0; position:relative; width:30px; margin-left:auto}
+.rail button span{position:absolute; right:38px; top:50%; translate:0 -50%; white-space:nowrap; font-size:12px; background:var(--surface); padding:3px 8px; border-radius:6px; box-shadow:var(--shadow); pointer-events:none}
+.rail button b{height:3px; border-radius:2px; width:12px}
+.rail button.on b{width:26px}
+.rail button:hover b{background:var(--ink)}
+/* selector de modelo */
+.picker{border-radius:var(--radius); border-color:var(--line); padding:14px 16px; gap:12px}
+.chips button{border-radius:8px; border-color:var(--line); background:var(--surface-2); font-size:14px; padding:5px 11px}
+.chips button:hover{border-color:var(--muted)}
+.chips button[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--surface)}
+.swatches button{box-shadow:inset 0 0 0 2px var(--surface), 0 0 0 0 transparent}
+.swatches button[aria-pressed="true"]{border:2px solid var(--ink)}
+.pick-toggle{border-radius:999px; padding:7px 14px; background:var(--surface-2); border-color:var(--line); font-size:14px}
+
+/* botones */
+.btn{border-radius:12px; font-size:17px}
+.btn.primary{background:var(--accent); color:var(--on-accent); box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent)}
+.btn.ghost,.btn.icon{background:var(--surface-2); border-color:var(--line)}
+
+/* bienvenida */
+.intro{background:color-mix(in srgb, var(--bg) 70%, transparent)}
+.intro-card{border-radius:22px; padding:30px 26px 24px; gap:16px; box-shadow:0 30px 80px rgba(16,20,24,.22)}
+.intro-card h1{font-size:36px; line-height:1}
+.intro-tips{gap:12px; padding:14px; background:var(--surface-2); border-radius:var(--radius)}
+.intro-tips .ic{background:var(--surface); color:var(--accent-ink); border:1px solid var(--line)}
+.gesture{border-radius:16px; border-color:var(--line)}
+
+/* vistas partidas */
+.pane-tag{border-radius:999px; padding:5px 11px; background:rgba(15,18,20,.78); font-size:10.5px; letter-spacing:.1em}
+.pane-split{height:4px; background:var(--accent); box-shadow:none}
+.load-pill{border-radius:999px; background:var(--surface); box-shadow:var(--shadow)}
+
+/* móvil */
+@media (max-width:760px){
+  .mbar{background:var(--surface); border-bottom:1px solid var(--line)}
+  .card{padding:18px}
+}
+body.stepper .sheet{border-radius:22px 22px 0 0; border-top:0; box-shadow:0 -1px 0 var(--line), 0 -16px 40px rgba(16,20,24,.14); padding-top:8px; gap:12px}
+.sheet-grab{display:block; width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 2px}
+.sheet-prog{gap:2px}
+.sheet-prog button{padding:6px 0}
+.sheet-prog button.ph-start{margin-left:6px}
+.sheet-prog button b{height:5px; border-radius:3px}
+.sheet-prog button.done b{background:color-mix(in srgb, var(--accent) 45%, var(--line))}
+.sheet-prog button.on b{background:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent)}
+.sheet-body h2{font-size:26px}
+.sheet-body .step-ey .n{font-size:28px}
+.sheet-body p{color:color-mix(in srgb, var(--ink) 88%, var(--muted))}
+.sheet-body .shim-key,.sheet-body .sect{margin-top:2px}
+.sheet-nav{grid-template-columns:1fr 50px 1.5fr; gap:8px}
 </style>
 
 <canvas id="scene" aria-label="Escena 3D del montaje de la puerta"></canvas>
@@ -257,39 +362,39 @@ body.stepper .swipe-hint{display:none}
     <p class="eyebrow">Puertas de entrada de aluminio · Montaje en obra</p>
     <h1>Instala tu puerta sobre premarco</h1>
     <p>Tu puerta llega fabricada a medida, en bloque: marco y hoja juntos. Todo empieza desde dentro de la vivienda: se recibe el premarco, se mete la puerta y, desde fuera, se cuadra con dos bolsas de aire. Elige tu modelo y acabado en el selector y sigue los pasos: cada uno se monta delante de ti.</p>
-    <span class="hint">Desliza hacia abajo</span>
+    <span class="hint">Baja para empezar</span>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 1 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">01</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>El hueco de obra</h2>
-    <p>Revisa el hueco antes de empezar: limpio, con la pared terminada (salvo el revestimiento final), los laterales a plomo y el suelo a nivel.</p>
+    <p>Revisa el hueco antes de empezar: limpio, con la fábrica de ladrillo acabada (todavía sin enlucir por dentro ni revestir por fuera), los laterales a plomo y el suelo a nivel.</p>
     <p>Cada obra es distinta. Las medidas de tu hueco, del premarco y de la puerta vienen en tu hoja de pedido.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 2 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">02</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>El premarco y sus garras</h2>
     <p>El premarco es el bastidor de acero galvanizado que se fija a la obra y sobre el que después va la puerta. Es el perfil 72503, premarco de 50 para recibir pladur: un tubo de 50 × 18,4 mm. Su cara larga es la que da al hueco: se prolonga 8 mm hacia dentro de casa y termina en un nervio. La cara corta es la que toca la obra. Trae garras soldadas, cuatro en cada lateral y dos en el cabecero, y dos tirantes que lo mantienen en escuadra: uno en medio y otro abajo, este último unido a los largueros con dos escuadras de refuerzo.</p>
     <p>No quites los tirantes hasta que el mortero haya fraguado.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 3 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">03</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>Abre huecos para las garras</h2>
     <p>Desde dentro, presenta el premarco en el hueco, enrasado con la cara interior de la pared, y marca en la pared dónde cae cada garra. Retíralo y abre un hueco en cada marca: diez en total, con fondo suficiente para que la garra quede bien metida.</p>
     <p>Limpia el polvo de los huecos, humedécelos y vuelve a meter el premarco con cada garra dentro de su hueco.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 4 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">04</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>Falca las garras con mortero</h2>
     <p>Con el premarco calzado en su sitio, rellena cada hueco con mortero de cemento para falcar las garras. Que el mortero envuelva bien cada garra.</p>
     <p>No uses yeso: estropea el galvanizado. Antes de que fragüe, comprueba el aplomado en los dos pasos siguientes.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 5 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">05</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>Aploma la cara frontal</h2>
     <p>Apoya el nivel en vertical sobre la cara frontal del premarco, la que da a la vivienda. Fíjate en el nervio de 8 mm: va en la cara que da al hueco y tiene que sobresalir hacia dentro de casa. La burbuja tiene que quedar centrada entre las dos rayas.</p>
     <figure class="sect"><svg viewBox="0 0 360 150" role="img" aria-label="Sección del premarco 72503: tubo de 50 por 18,4 milímetros; la cara que da al hueco se prolonga 8 milímetros hacia dentro de casa con un nervio"><defs><pattern id="hatch0" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="var(--muted)" stroke-width="1"/></pattern></defs><rect x="16" y="20" width="201.0" height="28" fill="url(#hatch0)" stroke="var(--muted)"/><text x="22" y="38" font-size="11" fill="currentColor">Pared (obra)</text><rect x="52" y="50" width="165.0" height="60.71999999999999" fill="none" stroke="currentColor" stroke-width="2.2"/><polyline points="217.0,110.72 243.39999999999998,110.72 243.39999999999998,100.82" fill="none" stroke="var(--accent)" stroke-width="3"/><text x="46" y="84.36" font-size="11" fill="currentColor" text-anchor="end">18,4</text><text x="147.7" y="126.72" font-size="11" fill="currentColor" text-anchor="middle">hueco de la puerta</text><text x="243.39999999999998" y="126.72" font-size="11" fill="var(--accent)" text-anchor="start" dx="4">nervio 8 mm</text><text x="22" y="12" font-size="12" font-weight="600" fill="currentColor">← Fuera</text><text x="352" y="12" font-size="12" font-weight="600" fill="currentColor" text-anchor="end">Dentro de casa →</text></svg><figcaption>Premarco 72503 visto en planta</figcaption></figure>
@@ -297,20 +402,20 @@ body.stepper .swipe-hint{display:none}
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 6 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">06</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>Aploma la cara interior</h2>
     <p>Ahora apoya el nivel por dentro del hueco, sobre la cara interior del premarco. También aquí la burbuja tiene que quedar centrada.</p>
-    <p>Comprueba los dos laterales, y que el cabecero quede a nivel.</p>
+    <p>Comprueba los dos laterales y que el cabecero quede a nivel.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 7 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">07</span><span class="of">/ 32</span><span class="ph">Premarco</span></p>
     <h2>Quita los dos tirantes</h2>
     <p>Espera a que el mortero haya fraguado del todo; según el mortero, puede ser hasta el día siguiente. Después quita el tirante del medio y el de abajo con sus dos escuadras: ya no hacen falta y estorbarían al meter la puerta.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 8 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">08</span><span class="of">/ 32</span><span class="ph">Interior y puerta</span></p>
     <h2>Enluce o coloca el pladur hasta el nervio</h2>
     <p>Antes de meter la puerta, haz el acabado de la cara interior: enlucido de yeso o pladur. En el hueco tiene que llegar hasta el nervio de 8 mm del premarco y quedar enrasado con él, sin pasar por delante.</p>
     <p>Así, al meter la puerta, su solape (el tapajuntas) apoya plano sobre el nervio y el acabado queda detrás del solape, tapado.</p>
@@ -318,55 +423,55 @@ body.stepper .swipe-hint{display:none}
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 9 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">09</span><span class="of">/ 32</span><span class="ph">Interior y puerta</span></p>
     <h2>Mete la puerta desde dentro</h2>
     <p>La puerta llega en bloque: marco de aluminio con la hoja ya colgada y cerrada, y con el tapajuntas interior en el marco. Métela desde dentro, entre dos personas, hasta que el solape (tapajuntas) quede apoyado sobre el nervio y el acabado.</p>
     <p>A los lados quedan unos 5 mm de holgura con el premarco. Ahora sal fuera: los pasos siguientes se hacen desde el exterior.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 10 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">10</span><span class="of">/ 32</span><span class="ph">Revisión</span></p>
     <h2>Mira abajo: apoya en el suelo</h2>
     <p>Desde fuera, mira el umbral. El marco está apoyado en el suelo, a ras, marcado en naranja, y así se queda durante todo el montaje.</p>
     <p>Mira también la raya entre la hoja y el umbral: en el lado de las bisagras hay unos 4 mm y en el de la manivela la hoja toca.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 11 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">11</span><span class="of">/ 32</span><span class="ph">Revisión</span></p>
     <h2>Mira arriba: holgura con el premarco</h2>
     <p>Entre el cabecero del marco y el premarco queda holgura, marcada en naranja.</p>
     <p>El marco no tiene que subir: lo que hay que corregir es la hoja, que está descolgada.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 12 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">12</span><span class="of">/ 32</span><span class="ph">Revisión</span></p>
     <h2>La hoja está descolgada</h2>
     <p>Mira la raya entre el marco y la hoja, arriba: en el lado de las bisagras mide unos 5 mm y en el de la manivela 10-11 mm. La hoja cae hacia la manivela.</p>
     <p>Abajo pasa al revés: holgura en el lado de las bisagras y la hoja tocando en el de la manivela. Los laterales están rectos.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 13 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">13</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Mete las bolsas desinfladas</h2>
     <p>Pon una bolsa <strong>arriba, en el lado de la manivela</strong>, y otra <strong>abajo, en el lado de las bisagras</strong>. Se meten desde fuera, planas, en la holgura entre el marco y el premarco, con la manguera y la pera hacia ti.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 14 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">14</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Aprieta las dos peras a la vez</h2>
     <p>Infla las dos bolsas a la vez, poco a poco. Se hinchan, llenan la holgura y cada una empuja el marco hacia el lado contrario.</p>
     <p>Pantalla partida: arriba ves el cabecero y abajo el umbral, con los dos lados a la vista.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 15 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">15</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Juega con una y con otra</h2>
     <p>Da apretones a una pera y luego a la otra. Abajo, en el lado de la manivela, el marco se va juntando al premarco; arriba, en el lado de las bisagras, también.</p>
     <p>El marco se cuadra en diagonal sin levantarse del suelo, y eso sube la hoja en el lado de la manivela: arriba la raya se cierra y abajo se abre.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 16 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">16</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Hasta que la raya quede igual</h2>
     <p>Sigue hasta que el marco toque el premarco en esas dos esquinas y la raya de arriba mida lo mismo en los dos lados. En las esquinas de las bolsas quedan unos 10 mm.</p>
     <p>No infles de golpe ni de más: puedes deformar el marco. Si te pasas, suelta un poco de aire con la válvula de la pera.</p>
@@ -374,22 +479,22 @@ body.stepper .swipe-hint{display:none}
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 17 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">17</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Mira abajo: la raya también es igual</h2>
     <p>Vuelve a mirar el umbral. El marco sigue apoyado en el suelo y la raya entre la hoja y el umbral ya mide lo mismo en los dos lados: la hoja no roza.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 18 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">18</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Mira arriba: todo ajustado</h2>
     <p>El marco toca el premarco en dos esquinas en diagonal (arriba en el lado de las bisagras y abajo en el de la manivela) y deja unos 10 mm en las esquinas de las bolsas. La raya entre marco y hoja mide lo mismo en los dos lados.</p>
     <p>Si no es así, infla o desinfla un poco la bolsa que haga falta.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 19 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">19</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Coloca las cuñas de plástico</h2>
-    <p>Sin quitar las bolsas, mete desde fuera cuñas de plástico entre el premarco y el marco para que no se mueva. Van tres en cada lado, de más gruesa a menos, y la más gruesa junto a la bolsa:</p>
+    <p>Sin quitar las bolsas, mete desde fuera cuñas de plástico entre el premarco y el marco para que el marco no se mueva. Van tres en cada lado, de más gruesa a menos, y la más gruesa junto a la bolsa:</p>
     <ul class="shim-key">
       <li><i style="background:#d23b2f"></i>9 mm, junto a la bolsa</li>
       <li><i style="background:#2f6fd6"></i>6 mm, en medio</li>
@@ -399,83 +504,83 @@ body.stepper .swipe-hint{display:none}
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 20 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">20</span><span class="of">/ 32</span><span class="ph">Cuadrar</span></p>
     <h2>Quita las bolsas</h2>
     <p>Con las cuñas puestas, abre la válvula de la pera, deja que las bolsas se desinflen y sácalas tirando hacia ti. El marco se queda en su sitio, sujeto por las cuñas.</p>
-    <p>En el último paso fijas el marco al premarco con tornillos.</p>
+    <p>En los pasos siguientes lo fijarás al premarco con tornillos.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 21 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">21</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Abre la hoja</h2>
-    <p>Con las cuñas puestas y sin bolsas, abre la hoja hacia dentro. Así quedan a la vista las caras interiores de los dos largueros, donde van los tornillos.</p>
+    <p>Con las cuñas puestas y sin bolsas, abre la hoja hacia dentro. Así quedan a la vista las caras de los dos largueros que dan al paso de la puerta, donde van los tornillos.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 22 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">22</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Atornilla el lado de la manivela</h2>
-    <p>Atornilla el marco al premarco por la cara interior del larguero, a la altura de cada cuña: tres tornillos, de arriba abajo.</p>
+    <p>Atornilla el marco al premarco por la cara del larguero que da al paso de la puerta, a la altura de cada cuña: tres tornillos, de arriba abajo.</p>
     <p>Junto a la cuña, el tornillo no deforma el marco. Aprieta sin pasarte.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 23 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">23</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Atornilla el lado de las bisagras</h2>
     <p>Repite en el otro larguero: tres tornillos, cada uno a la altura de su cuña.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 24 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">24</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 1 de 6</h2>
     <p>Con la puerta ya atornillada, desde fuera corta con un formón lo que sobresale de cada cuña. Apoya la hoja del formón plana contra el marco y corta a ras. Las cuñas se quedan dentro, sujetando.</p>
-    <p>Cuña arriba, lado de la manivela (roja, 9 mm): formón plano contra el marco y corte a ras.</p>
+    <p>Empieza por la cuña de arriba del lado de la manivela (roja, 9 mm).</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 25 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">25</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 2 de 6</h2>
     <p>Cuña en medio, lado de la manivela (azul, 6 mm): formón plano contra el marco y corte a ras.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 26 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">26</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 3 de 6</h2>
     <p>Cuña abajo, lado de la manivela (amarilla, 3 mm): formón plano contra el marco y corte a ras.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 27 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">27</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 4 de 6</h2>
     <p>Cuña abajo, lado de las bisagras (roja, 9 mm): formón plano contra el marco y corte a ras.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 28 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">28</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 5 de 6</h2>
     <p>Cuña en medio, lado de las bisagras (azul, 6 mm): formón plano contra el marco y corte a ras.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 29 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">29</span><span class="of">/ 32</span><span class="ph">Fijar</span></p>
     <h2>Corta la cuña 6 de 6</h2>
     <p>Cuña arriba, lado de las bisagras (amarilla, 3 mm): formón plano contra el marco y corte a ras.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 30 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">30</span><span class="of">/ 32</span><span class="ph">Remate</span></p>
     <h2>Comprueba la hoja</h2>
     <p>Cierra la hoja: tiene que abrir y cerrar sin rozar y la raya entre marco y hoja debe seguir igual en todo el contorno.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 31 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">31</span><span class="of">/ 32</span><span class="ph">Remate</span></p>
     <h2>Remata la obra por fuera</h2>
     <p>En vez de sellar con cordones de silicona el hueco entre premarco y marco, lleva la obra exterior hasta tapar el premarco y algo del marco. Queda más estético y protege la junta.</p>
     <p>Puede ser monocapa, piedra o el revestimiento que lleve la fachada.</p>
   </div></section>
 
   <section class="step"><div class="card">
-    <p class="eyebrow">Paso 32 de 32</p>
+    <p class="eyebrow step-ey"><span class="n">32</span><span class="of">/ 32</span><span class="ph">Remate</span></p>
     <h2>Repasa el remate</h2>
     <p>Recorre la unión entre la obra y el marco: desde abajo en un lado, subiendo, por arriba y bajando hasta abajo del otro lado. La obra tiene que llegar al marco en todo el contorno, sin huecos.</p>
     <ol class="recap">
@@ -521,6 +626,7 @@ body.stepper .swipe-hint{display:none}
 <div class="load-pill" id="loadPill" role="status">Cargando texturas reales…</div>
 <div class="swipe-hint" id="swipeHint">← Desliza la imagen para cambiar de paso →</div>
 <section class="sheet" id="sheet" aria-label="Instrucciones">
+  <span class="sheet-grab" aria-hidden="true"></span>
   <div class="sheet-prog" id="sheetProg"></div>
   <div class="sheet-body" id="sheetBody" aria-live="polite"></div>
   <div class="sheet-nav">
@@ -541,7 +647,8 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
-const STEP_NAMES = ['Inicio','Hueco','Premarco','Huecos garras','Falcar','Plomo frontal','Plomo interior','Tirantes','Enlucido','Puerta','Ras de suelo','Arriba','Descuelgue','Bolsas','A la vez','Alternar','Ajustar','Hoja libre','Ajuste','Cuñas','Retirar','Abrir hoja','Tornillos manivela','Tornillos bisagras','Cuña 1','Cuña 2','Cuña 3','Cuña 4','Cuña 5','Cuña 6','Comprobar','Remate exterior','Repasar remate'];
+const STEP_PHASE=['','Premarco','Premarco','Premarco','Premarco','Premarco','Premarco','Premarco','Interior y puerta','Interior y puerta','Revisión','Revisión','Revisión','Cuadrar','Cuadrar','Cuadrar','Cuadrar','Cuadrar','Cuadrar','Cuadrar','Cuadrar','Fijar','Fijar','Fijar','Fijar','Fijar','Fijar','Fijar','Fijar','Fijar','Remate','Remate','Remate'];
+const STEP_NAMES = ['Inicio','Hueco','Premarco','Huecos garras','Falcar','Plomo frontal','Plomo interior','Tirantes','Enlucido','Puerta','Ras de suelo','Arriba','Descuelgue','Bolsas','A la vez','Alternar','Igualar','Raya abajo','Raya arriba','Cuñas','Retirar','Abrir hoja','Tornillos manivela','Tornillos bisagras','Cuña 1','Cuña 2','Cuña 3','Cuña 4','Cuña 5','Cuña 6','Comprobar','Remate exterior','Repasar remate'];
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- rail ---------- */
@@ -552,6 +659,7 @@ const railBtns = STEP_NAMES.map((n,i)=>{
   b.type='button'; b.id='rail-'+i; b.setAttribute('aria-label','Ir a: '+n);
   b.innerHTML=`<span>${n}</span><b></b>`;
   b.addEventListener('click',()=>window.scrollTo({top:sections[i].offsetTop, behavior: reduced?'auto':'smooth'}));
+  if(i>0 && STEP_PHASE[i]!==STEP_PHASE[i-1] || i===1){ const h=document.createElement('li'); h.className='rail-ph'; h.textContent=STEP_PHASE[i]; h.setAttribute('aria-hidden','true'); rail.appendChild(h); }
   li.appendChild(b); rail.appendChild(li); return b;
 });
 
@@ -1662,6 +1770,7 @@ const LAST=sections.length-1;
 let stepper=false, cur=0, anim=null;
 const progBtns=STEP_NAMES.map((n,i)=>{
   const b=document.createElement('button'); b.type='button'; b.id='prog-'+i; b.setAttribute('aria-label','Paso: '+n);
+  if(i>1 && STEP_PHASE[i]!==STEP_PHASE[i-1]) b.classList.add('ph-start');
   b.innerHTML='<b></b>'; b.addEventListener('click',()=>goTo(i)); sheetProg.appendChild(b); return b;
 });
 const easeIO=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
