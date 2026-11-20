@@ -875,7 +875,7 @@ const M = {
   plaster:new THREE.MeshStandardMaterial({color:0xe9e6e0, roughness:.95, envMapIntensity:.4}),
   floor: new THREE.MeshStandardMaterial({map:conc.map, bumpMap:conc.bump, bumpScale:.6, roughness:.86, envMapIntensity:.3}),
   galv:  new THREE.MeshStandardMaterial({map:spangleTexture(), metalness:.85, roughness:.34, envMapIntensity:.9}),
-  lacquer:new THREE.MeshPhysicalMaterial({color:0xeeeee8, metalness:.15, roughness:.5, bumpMap:powderBump(), bumpScale:.25, clearcoat:.2, clearcoatRoughness:.5, envMapIntensity:.7}),
+  lacquer:new THREE.MeshPhysicalMaterial({color:0xeeeee8, metalness:.05, roughness:.22, clearcoat:1, clearcoatRoughness:.04, envMapIntensity:1.25, specularIntensity:1}),
   groove:new THREE.MeshStandardMaterial({color:0x777777, metalness:.1, roughness:.7}),
   polyam:new THREE.MeshStandardMaterial({color:0x1b1c1d, roughness:.7}),
   inox:  new THREE.MeshStandardMaterial({color:0xcfd3d6, metalness:1, roughness:.28}),
@@ -1164,9 +1164,15 @@ const F=-0.002;                 // cara exterior de la hoja (local)
 const LX0=0.003, LX1=LX0+LW;    // cantos
 leafPivot.add(rbox(LW,LH,LT,0.004,M.lacquer,LX0+LW/2,LY0+LH/2,F-LT/2));
 // canto de cerradura: frente de inox con bulones
-leafPivot.add(box(0.002,1.9,0.022,M.inox,LX1+0.001,1.05,F-LT/2));
-[0.4,1.05,1.75].forEach(y=>{ const bo=cyl(0.006,0.012,M.inox,'x'); bo.position.set(LX1+0.003,y,F-LT/2); leafPivot.add(bo); });
+leafPivot.add(box(0.002,1.9,0.022,M.inox,LX1-0.0009,1.05,F-LT/2));   // frente de cerradura, enrasado en el canto
+[0.4,1.05,1.75].forEach(y=>{ const bo=cyl(0.006,0.004,M.inox,'x'); bo.position.set(LX1-0.001,y,F-LT/2); leafPivot.add(bo); });
 const design=new THREE.Group(); leafPivot.add(design);
+// junta hoja-marco: fondo oscuro a los dos lados y arriba, para que la raya se lea igual en todo el contorno
+{ const jm=new THREE.MeshStandardMaterial({color:0x0c0d0e, roughness:.9});
+  // a ras de la cara exterior de la hoja: tapa el canto del larguero y deja una raya oscura igual a los dos lados
+  const jz=PIV_Z+F-0.005, jh=Hf-B-SH;
+  [-1,1].forEach(sd=>{ const j=box(0.0034,jh,0.008,jm,sd*(XI-0.0017),SH+jh/2,jz); j.castShadow=false; frameG.add(j); });
+  const jt=box(2*XI,0.003,0.008,jm,0,Hf-B-0.0015,jz); jt.castShadow=false; frameG.add(jt); }
 
 /* --- herrajes --- */
 function barPull(len,x,y,z,sign=1){
@@ -1247,8 +1253,8 @@ let curModel='MH3', curColor='9016';
 function updateSum(){ const el=document.getElementById('pickSum'); if(el) el.textContent=curModel+' · '+(COLORS[curColor].wood?'Roble':curColor); }
 function applyColor(key){
   curColor=key; const c=COLORS[key];
-  if(c.wood){ M.lacquer.map=wood; M.lacquer.color.set(0xffffff); M.lacquer.roughness=.6; M.groove.color.set(0x3c2615); }
-  else { M.lacquer.map=null; M.lacquer.color.set(c.hex); M.lacquer.roughness=.5;
+  if(c.wood){ M.lacquer.map=wood; M.lacquer.color.set(0xffffff); M.lacquer.roughness=.32; M.groove.color.set(0x3c2615); }
+  else { M.lacquer.map=null; M.lacquer.color.set(c.hex); M.lacquer.roughness=.22;
     const gc=new THREE.Color(c.hex); const hsl={}; gc.getHSL(hsl); M.groove.color.setHSL(hsl.h,hsl.s,hsl.l>0.6?hsl.l*0.5:hsl.l*0.45); }
   M.lacquer.needsUpdate=true;
   document.getElementById('colorOut').textContent=c.name;
@@ -1520,7 +1526,14 @@ function remate(){
   const add=(x0,x1,y0,y1,za,zb)=>{ const g=new THREE.BoxGeometry(x1-x0,y1-y0,zb-za); g.translate((x0+x1)/2,(y0+y1)/2,(za+zb)/2); worldUV(g,0.96);
     const m=new THREE.Mesh(g,M.monocapa); m.castShadow=m.receiveShadow=true; obraExt.add(m); };
   add(-WALL_X,-W0/2,0,WALL_H,z0,-T/2); add(W0/2,WALL_X,0,WALL_H,z0,-T/2); add(-W0/2,W0/2,H0,WALL_H,z0,-T/2);
-  add(-W0/2,-(Wf/2-ov),0,Hf,z0,zExt); add(Wf/2-ov,W0/2,0,Hf,z0,zExt); add(-W0/2,W0/2,Hf-ov,H0,z0,zExt);
+  // canto del marco ya cuadrado (posición final tras las bolsas): está inclinado, así que el remate sigue esa línea
+  const L=y=>(-Wi/2+G) - G*y/Hf, R=y=>L(y)+Wf;
+  const poly=(pts)=>{ const sh=new THREE.Shape(pts.map(([x,y])=>new THREE.Vector2(x,y)));
+    const g=new THREE.ExtrudeGeometry(sh,{depth:zExt-z0,bevelEnabled:false}); g.translate(0,0,z0); worldUV(g,0.96);
+    const m=new THREE.Mesh(g,M.monocapa); m.castShadow=m.receiveShadow=true; obraExt.add(m); };
+  poly([[-W0/2,0],[L(0)+ov,0],[L(Hf)+ov,Hf],[-W0/2,Hf]]);
+  poly([[R(0)-ov,0],[W0/2,0],[W0/2,Hf],[R(Hf)-ov,Hf]]);
+  add(-W0/2,W0/2,Hf-ov,H0,z0,zExt);
   obraExt.userData.parts=obraExt.children.slice();
 }
 remate();
