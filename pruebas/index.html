@@ -1211,34 +1211,43 @@ const groove=(x0,x1,y,mat=M.groove)=>{ const m=box(x1-x0,0.004,0.001,mat,(x0+x1)
 const vgroove=(x,y0,y1,mat=M.groove)=>{ const m=box(0.004,y1-y0,0.001,mat,x,(y0+y1)/2,GZ); m.castShadow=false; return m; };
 const inlayH=(x0,x1,y)=>box(x1-x0,0.005,0.002,M.inox,(x0+x1)/2,y,F+0.0008);
 const inlayV=(x,y0,y1)=>box(0.005,y1-y0,0.002,M.inox,x,(y0+y1)/2,F+0.0008);
-const yTop=f=>LY0+LH*(1-f);   // f medido desde arriba, como en el catálogo
+// medidas tomadas del catálogo Nouport (vista exterior); la cerradura del catálogo va a la izquierda,
+// aquí a la derecha, así que la posición horizontal va en espejo. f = fracción desde arriba, u = fracción del ancho desde las bisagras
+const yTop=f=>LY0+LH*(1-f);
+const xU=u=>LX0+LW*u;
+function roundEscutcheon(x,y,z){
+  const g=new THREE.Group();
+  const r=cyl(0.021,0.007,M.inox,'z'); r.castShadow=true; r.position.z=0.0035; g.add(r);
+  const cy=cyl(0.0085,0.004,M.steel,'z'); cy.position.z=0.0085; g.add(cy);
+  g.add(box(0.0016,0.011,0.002,M.rubber,0,0,0.011));
+  g.position.set(x,y,z); return g;
+}
 const MODELS={
-  MH3:{color:'9016', build(g){
-    const m=0.035;
-    g.add(groove(LX0+m,LX1-m,yTop(0.035)), groove(LX0+m,LX1-m,yTop(0.965)), vgroove(LX0+m,yTop(0.965),yTop(0.035)), vgroove(LX1-m,yTop(0.965),yTop(0.035)));
-    [0.22,0.5,0.78].forEach(f=>g.add(groove(LX0+m,LX1-m,yTop(f))));
-    g.add(barPull(1.4,LX1-0.2,1.07,F)); g.add(ovalEscutcheon(LX1-0.08,1.0,F));
+  MH3:{color:'9016', build(g){                 // 3 fresados horizontales de lado a lado, sin marco perimetral
+    [0.200,0.488,0.792].forEach(f=>g.add(groove(xU(0.015),xU(0.985),yTop(f))));
+    g.add(barPull(LH*0.76,xU(0.796),yTop(0.51),F)); g.add(roundEscutcheon(xU(0.90),yTop(0.524),F));
   }},
-  MH4:{color:'3005', build(g){
-    [0.06,0.36,0.64,0.94].forEach(f=>g.add(inlayH(LX0+0.05,LX1-0.05,yTop(f))));
-    g.add(barPull(1.4,LX1-0.2,1.07,F)); g.add(ovalEscutcheon(LX1-0.08,1.0,F));
+  MH4:{color:'3005', build(g){                 // 4 embutidos de inox
+    [0.056,0.338,0.635,0.922].forEach(f=>g.add(inlayH(xU(0.025),xU(0.977),yTop(f))));
+    g.add(barPull(LH*0.757,xU(0.834),yTop(0.497),F)); g.add(roundEscutcheon(xU(0.932),yTop(0.537),F));
   }},
-  Oslo:{color:'7016', build(g){
-    [0.2,0.25,0.75,0.8].forEach(f=>g.add(groove(LX0,LX1,yTop(f))));
-    g.add(leverSet(LX1-0.06,1.02,F));
+  Oslo:{color:'7016', build(g){                // 2 parejas de fresados
+    [0.177,0.238,0.757,0.818].forEach(f=>g.add(groove(xU(0.015),xU(0.985),yTop(f))));
+    g.add(leverSet(xU(0.945),yTop(0.49),F));
   }},
-  Javea:{color:'3005', build(g){
-    for(let i=1;i<7;i++) g.add(vgroove(LX0+LW*i/7,LY0+0.03,LY0+LH-0.03));
-    g.add(hBarPull(0.6,LX0+LW*0.55,1.05,F)); g.add(ovalEscutcheon(LX1-0.06,1.05,F));
+  Javea:{color:'3005', build(g){               // 8 tablas verticales (7 fresados)
+    for(let i=1;i<8;i++) g.add(vgroove(xU(i/8),LY0+0.006,LY0+LH-0.006));
+    g.add(hBarPull(LW*0.495,xU(0.49),yTop(0.539),F)); g.add(roundEscutcheon(xU(0.926),yTop(0.539),F));
   }},
-  Vienna:{color:'7016', build(g){
-    g.add(inlayV(LX0+LW*0.3,LY0+0.02,LY0+LH-0.02), inlayV(LX0+LW*0.86,LY0+0.02,LY0+LH-0.02));
-    for(let i=0;i<5;i++){
-      const y=yTop(0.18+i*0.14), x=LX0+LW*0.55;
-      g.add(box(0.13,0.13,0.004,M.groove,x,y,F+0.0005));
-      g.add(box(0.11,0.11,0.006,M.glass,x,y,F+0.001));
-    }
-    g.add(barPull(1.0,LX0+LW*0.75,1.07,F)); g.add(ovalEscutcheon(LX1-0.05,1.0,F));
+  Vienna:{color:'7016', build(g){              // 2 embutidos de inox verticales + 5 cristales
+    g.add(inlayV(xU(0.247),LY0+0.006,LY0+LH-0.006), inlayV(xU(0.753),LY0+0.006,LY0+LH-0.006));
+    const gw=LW*0.247, gh=LH*0.081;
+    [0.153,0.30,0.443,0.589,0.736].forEach(f=>{
+      const y=yTop(f), x=xU(0.5);
+      g.add(box(gw+0.012,gh+0.012,0.004,M.groove,x,y,F+0.0005));
+      g.add(box(gw,gh,0.006,M.glass,x,y,F+0.001));
+    });
+    g.add(barPull(LH*0.503,xU(0.856),yTop(0.5),F)); g.add(roundEscutcheon(xU(0.93),yTop(0.535),F));
   }},
 };
 const COLORS={
