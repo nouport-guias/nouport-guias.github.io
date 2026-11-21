@@ -8,3 +8,4 @@ Texturas (ladrillo, enfoscado, hormigón) y cielo de iluminación: [Poly Haven](
 - `construction_yard` (HDRI) — luz y reflejos del cielo
 - `beige_wall_001` — monocapa del remate exterior
 - Versiones `_2k` de enfoscado, suelo y monocapa: se cargan solo en ordenador
+- `concrete_pavers_02` — acera; `asphalt_02` — calzada

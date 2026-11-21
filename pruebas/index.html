@@ -890,6 +890,11 @@ const M = {
   tape:  new THREE.MeshStandardMaterial({map:tapeTexture(), roughness:.45, metalness:.3}),
   toolBody:new THREE.MeshStandardMaterial({color:0x2a2d31, roughness:.55}),
   toolAccent:new THREE.MeshStandardMaterial({color:0xd8b41e, roughness:.5}),
+  lacquerDark:new THREE.MeshPhysicalMaterial({color:0x2c3033, roughness:.35, clearcoat:.6, clearcoatRoughness:.2, metalness:.2}),
+  winGlass:new THREE.MeshPhysicalMaterial({color:0x5d6a72, roughness:.03, metalness:.1, envMapIntensity:1.6, clearcoat:1}),
+  monocapa:new THREE.MeshStandardMaterial({color:0xd9cbb2, map:rend.map, bumpMap:rend.bump, bumpScale:2.5, roughness:1, envMapIntensity:.3}),
+  ceiling:new THREE.MeshStandardMaterial({color:0xf2efe9, roughness:.95, envMapIntensity:.5, emissive:0x2a2826}),
+  stone: new THREE.MeshStandardMaterial({color:0xc9c5bd, roughness:.75, envMapIntensity:.4}),
   lineA: new THREE.LineBasicMaterial({color:0xc94a12, transparent:true, opacity:0, depthTest:false}),
 };
 
@@ -922,11 +927,14 @@ const XI=Wf/2-B;              // media luz de paso
 const SH=0.022;               // umbral
 
 /* ---------- floor + wall + room behind ---------- */
+const WALL_X=4.2, WALL_H=2.85;   // WALL_X: ancho de la habitación interior; la fachada sigue hasta FAC_X
+const FAC_X=14, SIDE_Z=-3.2, ROOM_Z=7.2, ROAD_Y=-0.13;
 const floorGeo=new THREE.PlaneGeometry(60,60); floorGeo.rotateX(-Math.PI/2);
-floorGeo.attributes.uv.array.forEach((v,i,a)=>a[i]=v*24);
-const floor=new THREE.Mesh(floorGeo,M.floor); floor.receiveShadow=true; scene.add(floor);
+floorGeo.attributes.uv.array.forEach((v,i,a)=>a[i]=v*12);
+// calzada de asfalto, un bordillo más baja que la acera
+M.asphalt=new THREE.MeshStandardMaterial({color:0x8a8a8a, roughness:.95, envMapIntensity:.3});
+const floor=new THREE.Mesh(floorGeo,M.asphalt); floor.position.y=ROAD_Y; floor.receiveShadow=true; scene.add(floor);
 
-const WALL_X=3.6, WALL_H=2.85;
 const wallMats=[M.render,M.render,M.render,M.render,M.render,M.render];
 // garras del premarco: 4 por lateral y 2 en el cabecero; la pared lleva un cajeado para cada una
 const GARRA_Y=[0.3,0.85,1.4,1.95], GARRA_X=[-0.3,0.3];
@@ -951,18 +959,70 @@ function wallFront(pts){
 }
 // canto de forjado encima del muro
 {
-  const g=new THREE.BoxGeometry(2*WALL_X,0.26,T+0.08); g.translate(0,WALL_H+0.13,0.0); worldUV(g,2);
+  const g=new THREE.BoxGeometry(2*FAC_X,0.26,T); g.translate(0,WALL_H+0.13,0.0); worldUV(g,2);
   M.slab=new THREE.MeshStandardMaterial({map:conc.map,bumpMap:conc.bump,bumpScale:.8,color:0xd9d6d0,roughness:.92,envMapIntensity:.3});
   const slab=new THREE.Mesh(g,M.slab);
   slab.castShadow=true; slab.receiveShadow=true; scene.add(slab);
 }
-// solera del interior, más clara y lisa que el exterior
+// fachada: el muro sigue a los lados y hay un piso encima (la casa no es una pared suelta)
 {
-  const g=new THREE.PlaneGeometry(2*WALL_X,3.3); g.rotateX(-Math.PI/2);
-  { const uv=g.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)*2*WALL_X/3,uv.getY(i)*3.3/3); }
+  const solid=(x0,x1,y0,y1,z0,z1,mat=M.render,uvs=0.96)=>{ const g=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0); g.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2); worldUV(g,uvs);
+    const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.castShadow=false; scene.add(m); return m; };
+  solid(-FAC_X,-WALL_X,0,WALL_H,-T/2,T/2); solid(WALL_X,FAC_X,0,WALL_H,-T/2,T/2);
+  // planta de arriba con una ventana encima de la puerta
+  const y0=WALL_H+0.26, y1=5.9, wx=0.65, wy0=3.75, wy1=5.15;
+  // la planta de arriba (y el frente del forjado) ya tienen la monocapa terminada; abajo se remata al final
+  solid(-FAC_X,FAC_X,WALL_H,y0,-T/2-0.015,-T/2,M.monocapa);
+  [[-FAC_X,-wx,y0,y1],[wx,FAC_X,y0,y1],[-wx,wx,y0,wy0],[-wx,wx,wy1,y1]].forEach(([a,b,c,d])=>{ solid(a,b,c,d,-T/2,T/2); solid(a,b,c,d,-T/2-0.015,-T/2,M.monocapa); });
+  // ventana: marco de aluminio, vidrio y alféizar
+  const win=new THREE.Group(); scene.add(win);
+  const fr=0.055, zf=-0.02;
+  win.add(box(2*wx,fr,0.07,M.lacquerDark,0,wy0+fr/2,zf), box(2*wx,fr,0.07,M.lacquerDark,0,wy1-fr/2,zf),
+          box(fr,wy1-wy0,0.07,M.lacquerDark,-wx+fr/2,(wy0+wy1)/2,zf), box(fr,wy1-wy0,0.07,M.lacquerDark,wx-fr/2,(wy0+wy1)/2,zf),
+          box(fr*0.8,wy1-wy0,0.06,M.lacquerDark,0,(wy0+wy1)/2,zf));
+  const gl=new THREE.Mesh(new THREE.PlaneGeometry(2*wx,wy1-wy0),M.winGlass); gl.position.set(0,(wy0+wy1)/2,zf+0.005); gl.rotation.y=Math.PI; win.add(gl);
+  const sill=rbox(2*wx+0.1,0.03,0.14,0.004,M.stone,0,wy0-0.015,-T/2-0.03); win.add(sill);
+  // pretil y albardilla arriba
+  solid(-FAC_X,FAC_X,y1,y1+0.04,-T/2-0.03,T/2+0.03,M.stone,1);
+}
+// edificio de enfrente, al otro lado de la calle: cierra el fondo que se ve por el hueco
+{
+  const zF=-10.5, g=new THREE.Group(); scene.add(g);
+  const fac=new THREE.Mesh(worldUV(new THREE.BoxGeometry(2*FAC_X,7,0.3).translate(0,3.5+ROAD_Y,0),0.96),M.monocapa);
+  fac.position.z=zF; fac.rotation.y=Math.PI; g.add(fac);
+  const sw=new THREE.Mesh(new THREE.BoxGeometry(2*FAC_X,0.13,2.2),M.stone); sw.position.set(0,ROAD_Y+0.065,zF+1.25); g.add(sw);
+  [-6.5,-3.2,0.4,3.8,7.2].forEach((x,k)=>[[1.15,2.3],[4.3,5.4]].forEach(([y0,y1],r)=>{
+    if(r===0&&k===2){ g.add(box(1.0,2.2,0.04,M.lacquerDark,x,ROAD_Y+1.1,zF+0.16)); return; }   // portal
+    g.add(box(1.25,y1-y0,0.04,M.winGlass,x,(y0+y1)/2,zF+0.16));
+    g.add(box(1.35,0.05,0.12,M.stone,x,y0-0.03,zF+0.2));
+  }));
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=false; o.receiveShadow=false; } });
+}
+// habitación interior en obra: paredes laterales, fondo y techo de forjado (no tapan el sol: la luz entra como por una ventana)
+{
+  const solid=(x0,x1,y0,y1,z0,z1,mat)=>{ const g=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0); g.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2); worldUV(g,0.96);
+    const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.castShadow=false; scene.add(m); return m; };
+  solid(-WALL_X-0.15,-WALL_X,0,WALL_H,T/2,ROOM_Z,M.render); solid(WALL_X,WALL_X+0.15,0,WALL_H,T/2,ROOM_Z,M.render);
+  solid(-WALL_X-0.15,WALL_X+0.15,0,WALL_H,ROOM_Z,ROOM_Z+0.15,M.render);
+  const ceil=solid(-WALL_X-0.15,WALL_X+0.15,WALL_H,WALL_H+0.26,T/2,ROOM_Z+0.15,M.ceiling);
+}
+// solera del interior (también el paso del hueco): más clara y lisa
+{
+  const d=ROOM_Z+T/2, g=new THREE.PlaneGeometry(2*WALL_X,d); g.rotateX(-Math.PI/2);
+  { const uv=g.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)*2*WALL_X/3,uv.getY(i)*d/3); }
   M.screed=new THREE.MeshStandardMaterial({map:conc.map,color:0xe6e1d8,roughness:.8,envMapIntensity:.35});
   const m=new THREE.Mesh(g,M.screed);
-  m.position.set(0,0.0006,-T/2-1.65); m.receiveShadow=true; scene.add(m);
+  m.position.set(0,0.0006,-T/2+d/2); m.receiveShadow=true; scene.add(m);
+}
+// acera de baldosa delante de la fachada y bordillo de granito
+{
+  const d=-T/2-SIDE_Z, g=new THREE.PlaneGeometry(2*FAC_X,d); g.rotateX(-Math.PI/2);
+  { const uv=g.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)*2*FAC_X/2.4,uv.getY(i)*d/2.4); }
+  M.pavers=new THREE.MeshStandardMaterial({color:0xb9b4ad, roughness:.9, envMapIntensity:.35});
+  const m=new THREE.Mesh(g,M.pavers); m.position.set(0,0.0004,-T/2-d/2); m.receiveShadow=true; scene.add(m);
+  const curb=rbox(2*FAC_X,-ROAD_Y+0.004,0.14,0.012,M.stone,0,ROAD_Y/2+0.002,SIDE_Z-0.07); curb.castShadow=false; scene.add(curb);
+  // tapa bajo la acera, para que no se vea el hueco entre acera y calzada
+  scene.add(box(2*FAC_X,-ROAD_Y,0.01,M.stone,0,ROAD_Y/2,SIDE_Z-0.001));
 }
 // sombras de contacto en la unión pared-suelo
 {
@@ -1535,7 +1595,6 @@ function trimShims(u,zExt){
   });
 }
 /* ---------- remate exterior: la obra tapa el premarco y algo del marco (sin cordón de silicona) ---------- */
-M.monocapa=new THREE.MeshStandardMaterial({color:0xd9cbb2, map:rend.map, bumpMap:rend.bump, bumpScale:2.5, roughness:1, envMapIntensity:.3});
 const obraExt=new THREE.Group(); scene.add(obraExt);
 function remate(){
   const zExt=T/2+NERV-DF, RT=0.015, ov=0.012, z0=-T/2-RT;
@@ -1547,7 +1606,7 @@ function remate(){
     const g=new THREE.ExtrudeGeometry(sh,{depth:zb-za,bevelEnabled:false}); g.translate(0,0,za); worldUV(g,0.96);
     const m=new THREE.Mesh(g,M.monocapa); m.castShadow=m.receiveShadow=true; obraExt.add(m); };
   // cara de fachada de una sola pieza, con el hueco recortado siguiendo el marco: sin juntas a la vista
-  poly([[-WALL_X,0],[L(0)+ov,0],[L(Hf)+ov,Hf-ov],[R(Hf)-ov,Hf-ov],[R(0)-ov,0],[WALL_X,0],[WALL_X,WALL_H],[-WALL_X,WALL_H]],z0,-T/2);
+  poly([[-FAC_X,0],[L(0)+ov,0],[L(Hf)+ov,Hf-ov],[R(Hf)-ov,Hf-ov],[R(0)-ov,0],[FAC_X,0],[FAC_X,WALL_H],[-FAC_X,WALL_H]],z0,-T/2);
   // mochetas: quedan detrás de la cara de fachada, solo se ve su canto hacia el marco
   const zb=z0+0.0004;
   poly([[-W0/2-0.01,0],[L(0)+ov,0],[L(Hf)+ov,Hf],[-W0/2-0.01,Hf]],zb,zExt);
@@ -1727,8 +1786,9 @@ function photoSet(name,rep,mats,opt={}){
   }).catch(()=>{}).finally(loadDone);
 }
 photoSet('plaster',0.96/2.0,[M.render],{tint:0xe9e6e1});
-photoSet('monocapa',0.96/1.2,[M.monocapa],{tint:0xfff6ea,ns:1.1,boost:1.32});
-photoSet('screed',2.5/3,[M.floor],{tint:0xdcd9d4});
+photoSet('monocapa',0.96/1.2,[M.monocapa],{tint:0xe2e8ee,ns:1.1,boost:1.4});
+photoSet('asphalt',1,[M.asphalt],{tint:0xd8d8d8,hi:false});
+photoSet('pavers',1.25,[M.pavers],{tint:0xb4bcc4});
 photoSet('screed',2/3,[M.slab],{tint:0xeeebe6});
 photoSet('screed',1,[M.screed],{tint:0xffffff});
 pending++;
