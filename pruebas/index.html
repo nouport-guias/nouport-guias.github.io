@@ -888,8 +888,9 @@ const M = {
   bag:   new THREE.MeshPhysicalMaterial({map:bagTexture(), roughness:.58, sheen:.5, sheenColor:0xffb070, sheenRoughness:.6, envMapIntensity:.6}),
   hose:  new THREE.MeshStandardMaterial({color:0x232527, roughness:.45}),
   tape:  new THREE.MeshStandardMaterial({map:tapeTexture(), roughness:.45, metalness:.3}),
-  toolBody:new THREE.MeshStandardMaterial({color:0x2a2d31, roughness:.55}),
-  toolAccent:new THREE.MeshStandardMaterial({color:0xd8b41e, roughness:.5}),
+  toolBody:new THREE.MeshPhysicalMaterial({color:0x2a2d31, roughness:.45, clearcoat:.3, clearcoatRoughness:.35}),
+  polSteel:new THREE.MeshStandardMaterial({color:0xc4c8cc, metalness:1, roughness:.18, envMapIntensity:1.2}),
+  toolAccent:new THREE.MeshPhysicalMaterial({color:0xd8b41e, roughness:.42, clearcoat:.4, clearcoatRoughness:.3}),
   lacquerDark:new THREE.MeshPhysicalMaterial({color:0x2c3033, roughness:.35, clearcoat:.6, clearcoatRoughness:.2, metalness:.2}),
   winGlass:new THREE.MeshPhysicalMaterial({color:0x5d6a72, roughness:.03, metalness:.1, envMapIntensity:1.6, clearcoat:1}),
   monocapa:new THREE.MeshStandardMaterial({color:0xd9cbb2, map:rend.map, bumpMap:rend.bump, bumpScale:2.5, roughness:1, envMapIntensity:.3}),
@@ -984,6 +985,17 @@ function wallFront(pts){
   const sill=rbox(2*wx+0.1,0.03,0.14,0.004,M.stone,0,wy0-0.015,-T/2-0.03); win.add(sill);
   // pretil y albardilla arriba
   solid(-FAC_X,FAC_X,y1,y1+0.04,-T/2-0.03,T/2+0.03,M.stone,1);
+}
+// suciedad de salpicadura en la parte baja de la fachada (la tapa el remate final)
+{
+  const mat=new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2});
+  const seg=(x0,x1)=>{
+    const g=new THREE.PlaneGeometry(x1-x0,0.42,Math.ceil((x1-x0)/0.25),3), p=g.attributes.position, col=[];
+    for(let i=0;i<p.count;i++){ const v=(p.getY(i)+0.21)/0.42, n=0.75+0.5*Math.sin(p.getX(i)*7.1+Math.sin(p.getX(i)*2.3)*2);   // irregular a lo largo
+      col.push(0.23,0.2,0.17, Math.max(0,(1-v))**1.6*0.42*n); }
+    g.setAttribute('color',new THREE.Float32BufferAttribute(col,4));
+    const m=new THREE.Mesh(g,mat); m.rotation.y=Math.PI; m.position.set((x0+x1)/2,0.21,-T/2-0.0008); m.receiveShadow=true; m.renderOrder=1; scene.add(m); };
+  seg(-FAC_X,-W0/2); seg(W0/2,FAC_X);
 }
 // edificio de enfrente, al otro lado de la calle: cierra el fondo que se ve por el hueco
 {
@@ -1434,10 +1446,12 @@ const drill=new THREE.Group(); scene.add(drill);
   const bit=cyl(0.0022,0.05,M.steel,'x',8); bit.position.x=-0.025; drill.add(bit);
   const chuck=cyl(0.014,0.045,M.rubber,'x'); chuck.position.x=-0.072; drill.add(chuck); drill.userData.spin=[bit,chuck];
   const collar=cyl(0.02,0.02,M.toolAccent,'x'); collar.position.x=-0.104; drill.add(collar);
-  const body=rbox(0.13,0.06,0.055,0.02,M.toolBody,-0.175,0,0); drill.add(body);
-  const grip=rbox(0.042,0.13,0.042,0.014,M.toolBody,-0.19,-0.085,0); grip.rotation.z=-0.12; drill.add(grip);
-  const trig=box(0.012,0.025,0.012,M.rubber,-0.165,-0.04,0); drill.add(trig);
-  const bat=rbox(0.11,0.05,0.075,0.008,M.toolAccent,-0.2,-0.17,0); drill.add(bat);
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.03,0.085,8,20),M.toolBody); body.rotation.z=Math.PI/2; body.scale.set(1,1,0.92); body.position.x=-0.175; drill.add(body);
+  for(let k=0;k<4;k++){ const v=box(0.003,0.022,0.004,M.rubber,-0.205-k*0.008,0.012,0.0275); drill.add(v); const v2=v.clone(); v2.position.z=-0.0275; drill.add(v2); }   // rejillas del motor
+  const grip=new THREE.Mesh(new THREE.CapsuleGeometry(0.02,0.09,6,16),M.toolBody); grip.position.set(-0.19,-0.085,0); grip.rotation.z=-0.14; drill.add(grip);
+  const pad=new THREE.Mesh(new THREE.CapsuleGeometry(0.0205,0.06,6,16),M.rubber); pad.position.set(-0.195,-0.09,0); pad.rotation.z=-0.14; pad.scale.set(1.02,1,1.04); drill.add(pad);
+  const trig=rbox(0.012,0.026,0.014,0.004,M.toolAccent,-0.163,-0.042,0); drill.add(trig);
+  const bat=rbox(0.11,0.05,0.075,0.012,M.toolAccent,-0.2,-0.17,0); drill.add(bat);
   const batTop=rbox(0.1,0.012,0.068,0.004,M.toolBody,-0.2,-0.142,0); drill.add(batTop);
   drill.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
 }
@@ -1472,7 +1486,7 @@ const SHIMS=[[1,Hf-0.12,9],[1,Hf*0.6,6],[1,Hf*0.3,3],[-1,0.12,9],[-1,Hf*0.4,6],[
 // cuñas de plástico inyectado: estriado de agarre y brillo satinado
 const shimRibs=(()=>{ const c=mkCanvas(64,256), g=c.getContext('2d'); g.fillStyle='#808080'; g.fillRect(0,0,64,256);
   for(let y=0;y<256;y+=16){ const gr=g.createLinearGradient(0,y,0,y+16); gr.addColorStop(0,'#5a5a5a'); gr.addColorStop(.45,'#b4b4b4'); gr.addColorStop(.55,'#b4b4b4'); gr.addColorStop(1,'#5a5a5a'); g.fillStyle=gr; g.fillRect(0,y,64,16); }
-  const t=tex(c,false); t.repeat.set(1,3); return t; })();
+  const t=tex(c,false); t.repeat.set(1,0.45); return t; })();
 const shimMats={}; Object.entries(SHIM_KIND).forEach(([k,v])=>shimMats[k]=new THREE.MeshPhysicalMaterial({color:v.col, roughness:.4, metalness:0, clearcoat:.35, clearcoatRoughness:.35, bumpMap:shimRibs, bumpScale:1.2, envMapIntensity:.8}));
 const shims=SHIMS.map(([sd,y,mm])=>{
   const g=new THREE.BoxGeometry(1,0.08,0.13,1,1,48); const m=new THREE.Mesh(g,shimMats[mm]); m.castShadow=true;
@@ -1563,8 +1577,10 @@ const offcuts=shims.map(m=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(1,0.08
 // formón: mango de madera, virola y hoja de acero; la punta está en x=0 y corta hacia +x
 const chisel=new THREE.Group(); scene.add(chisel); chisel.visible=false;
 { const wood=new THREE.MeshStandardMaterial({color:0x9a6a3e, map:wood_tex(), roughness:.6});
-  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.022,0.003),M.steel); blade.position.x=-0.055; blade.castShadow=true; chisel.add(blade);
-  const bevel=new THREE.Mesh(new THREE.BoxGeometry(0.008,0.022,0.0015),M.inox); bevel.position.set(-0.004,0,0.0012); chisel.add(bevel);
+  const bs=new THREE.Shape(); bs.moveTo(0,-0.011); bs.lineTo(0,0.011); bs.lineTo(-0.11,0.0065); bs.lineTo(-0.11,-0.0065); bs.closePath();
+  const bg=new THREE.ExtrudeGeometry(bs,{depth:0.0026,bevelEnabled:true,bevelThickness:0.0004,bevelSize:0.0004,bevelSegments:2}); bg.translate(0,0,-0.0013);
+  const blade=new THREE.Mesh(bg,M.polSteel); blade.castShadow=true; chisel.add(blade);
+  const bevel=new THREE.Mesh(new THREE.BoxGeometry(0.008,0.0222,0.0012),M.inox); bevel.position.set(-0.004,0,0.0016); bevel.rotation.y=-0.25; chisel.add(bevel);
   const neck=cyl(0.005,0.02,M.steel,'x'); neck.position.x=-0.12; chisel.add(neck);
   const ferr=cyl(0.0125,0.012,M.inox,'x'); ferr.position.x=-0.135; chisel.add(ferr);
   const hnd=new THREE.Mesh(new THREE.CylinderGeometry(0.0135,0.011,0.11,24),wood); hnd.rotation.z=Math.PI/2; hnd.position.x=-0.196; hnd.castShadow=true; chisel.add(hnd);
