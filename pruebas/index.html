@@ -1140,15 +1140,17 @@ function garra(){ const g=new THREE.Group();
 GARRA_X.forEach(x=>{ const g=garra(); g.rotation.z=Math.PI/2; g.position.set(x,H0,0.01); pmGroup.add(g); });
 // cajeados: tapa de pared que se "pica" hacia dentro, interior de ladrillo roto y relleno de mortero
 const cavMat=new THREE.MeshStandardMaterial({map:brick.map, bumpMap:brick.bump, bumpScale:4, color:0xb38e7a, roughness:1, side:THREE.BackSide});
-M.mortar=new THREE.MeshStandardMaterial({color:0x6f6a63, map:rend.map, bumpMap:rend.bump, bumpScale:5, roughness:1});
+M.mortar=new THREE.MeshStandardMaterial({color:0x7d7a74, map:rend.map, bumpMap:rend.bump, bumpScale:7, roughness:.9, envMapIntensity:.35});   // mortero de cemento gris, recién echado
 const pockets=[];
 function pocket(cx,cy,sx,sy){           // centro del cajeado y tamaño en x/y
   const liner=new THREE.Mesh(new THREE.BoxGeometry(sx-0.001,sy-0.001,PD-0.001),cavMat); liner.position.set(cx,cy,T/2-PD/2); liner.receiveShadow=true;
   const cg=new THREE.BoxGeometry(sx,sy,PD); cg.translate(cx,cy,PD/2); worldUV(cg,0.96); cg.translate(0,0,-PD/2);
   const cover=new THREE.Mesh(cg,M.render); cover.position.set(0,0,T/2-PD/2); cover.receiveShadow=true;
-  const fg=new THREE.BoxGeometry(sx*1.02,sy*1.02,PD+0.002); fg.translate(0,0,(PD+0.002)/2); const fv=fg.attributes.position;
-  for(let i=0;i<fv.count;i++) if(fv.getZ(i)>PD) fv.setZ(i,PD+0.002+0.004*Math.random());   // frente irregular
-  fg.computeVertexNormals();
+  // pegote de mortero: frente abombado e irregular, que rebosa un poco del cajeado
+  const fg=new THREE.BoxGeometry(sx*1.06,sy*1.06,PD+0.002,10,10,1); fg.translate(0,0,(PD+0.002)/2); const fv=fg.attributes.position;
+  for(let i=0;i<fv.count;i++) if(fv.getZ(i)>PD){ const u=fv.getX(i)/(sx*0.53), v=fv.getY(i)/(sy*0.53), e=Math.max(0,1-Math.max(u*u,v*v));
+    fv.setZ(i,PD+0.0005+0.0045*Math.sqrt(e)+0.0025*Math.random()*e); }
+  fg.computeVertexNormals(); worldUV(fg,0.35);
   const fill=new THREE.Mesh(fg,M.mortar); fill.position.set(cx,cy,T/2-PD); fill.castShadow=true; fill.receiveShadow=true;
   [liner,cover,fill].forEach(m=>scene.add(m));
   pockets.push({liner,cover,fill,cx,cy});
