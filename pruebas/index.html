@@ -721,7 +721,7 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(SMALL?2048:4096,SMALL?2048:4096);
 sun.shadow.camera.left=-3; sun.shadow.camera.right=3; sun.shadow.camera.top=3.4; sun.shadow.camera.bottom=-1.2;
 sun.shadow.camera.near=0.5; sun.shadow.camera.far=12;
-sun.shadow.bias=-0.0003; sun.shadow.normalBias=0.015; sun.shadow.radius=3;
+sun.shadow.bias=-0.0005; sun.shadow.normalBias=0.022; sun.shadow.radius=3;
 scene.add(sun); scene.add(sun.target);
 // rebote del suelo: ilumina las caras que miran hacia abajo (techo del hueco, bajos de las piezas)
 const bounce=new THREE.DirectionalLight(0xe6e0d6,0.55); bounce.position.set(0.4,-3,-0.6); scene.add(bounce);
@@ -1045,7 +1045,15 @@ function wallFront(pts){
   const strip=(w,d,x,z,ry)=>{ const g=new THREE.PlaneGeometry(w,d); g.rotateX(-Math.PI/2); const m=new THREE.Mesh(g,aoMat); m.rotation.y=ry; m.position.set(x,0.0015,z); m.renderOrder=1; scene.add(m); };
   const L=WALL_X-W0/2, cx=(WALL_X+W0/2)/2;
   strip(L,0.4,-cx,T/2+0.2,0); strip(L,0.4,cx,T/2+0.2,0);
-  strip(L,0.4,-cx,-T/2-0.2,Math.PI); strip(L,0.4,cx,-T/2-0.2,Math.PI);
+  { const Lf=FAC_X-W0/2, cf=(FAC_X+W0/2)/2; strip(Lf,0.4,-cf,-T/2-0.2,Math.PI); strip(Lf,0.4,cf,-T/2-0.2,Math.PI); }
+  // rincones de la habitación: suelo con paredes laterales y fondo
+  strip(ROOM_Z-T/2,0.35,-WALL_X+0.175,(ROOM_Z+T/2)/2,Math.PI/2); strip(ROOM_Z-T/2,0.35,WALL_X-0.175,(ROOM_Z+T/2)/2,-Math.PI/2);
+  strip(2*WALL_X,0.35,0,ROOM_Z-0.175,Math.PI);
+  // rincones verticales y del techo: el mismo degradado en planos pegados a la pared
+  const vstrip=(w,h,x,y,z,ry,rz=0)=>{ const g=new THREE.PlaneGeometry(w,h); const m=new THREE.Mesh(g,aoMat); m.rotation.set(0,ry,rz); m.position.set(x,y,z); m.renderOrder=1; scene.add(m); };
+  // techo junto a las paredes (la sombra baja desde el techo)
+  [[0,T/2+0.0095,0],[0,ROOM_Z-0.002,Math.PI]].forEach(([x,z,ry])=>vstrip(2*WALL_X,0.3,x,WALL_H-0.15,z,ry));
+  [[-WALL_X+0.002,Math.PI/2],[WALL_X-0.002,-Math.PI/2]].forEach(([x,ry])=>vstrip(ROOM_Z-T/2,0.3,x,WALL_H-0.15,(ROOM_Z+T/2)/2,ry));
   strip(T,0.14,-W0/2+0.07,0,Math.PI/2); strip(T,0.14,W0/2-0.07,0,-Math.PI/2);
 }
 // pared del fondo (interior de la vivienda)
@@ -1134,7 +1142,7 @@ function garra(){ const g=new THREE.Group();
   // pletina de 25 x 2 mm con dos taladros y la punta doblada en cola de milano
   g.add(box(0.07,0.025,0.002,M.galv,0.035,0,0));
   [0.03,0.052].forEach(x=>{ const h=cyl(0.0045,0.0026,M.rubber,'z',14); h.position.set(x,0,0); g.add(h); });
-  const tail=box(0.002,0.034,0.026,M.galv,0.07,0,0.012); g.add(tail);
+  const tail=box(0.002,0.034,0.026,M.galv,0.07,0,-0.012); g.add(tail);   // la cola se dobla hacia dentro del muro, no hacia la vivienda
   return g; }
 [-1,1].forEach(sd=>GARRA_Y.forEach(y=>{ const g=garra(); g.scale.x=sd; g.position.set(sd*W0/2,y,0.01); pmGroup.add(g); }));
 GARRA_X.forEach(x=>{ const g=garra(); g.rotation.z=Math.PI/2; g.position.set(x,H0,0.01); pmGroup.add(g); });
@@ -1149,7 +1157,7 @@ function pocket(cx,cy,sx,sy){           // centro del cajeado y tamaño en x/y
   // pegote de mortero: frente abombado e irregular, que rebosa un poco del cajeado
   const fg=new THREE.BoxGeometry(sx*1.06,sy*1.06,PD+0.002,10,10,1); fg.translate(0,0,(PD+0.002)/2); const fv=fg.attributes.position;
   for(let i=0;i<fv.count;i++) if(fv.getZ(i)>PD){ const u=fv.getX(i)/(sx*0.53), v=fv.getY(i)/(sy*0.53), e=Math.max(0,1-Math.max(u*u,v*v));
-    fv.setZ(i,PD+0.0005+0.0045*Math.sqrt(e)+0.0025*Math.random()*e); }
+    fv.setZ(i,PD+0.0003+0.0026*Math.sqrt(e)+0.0012*Math.random()*e); }   // máx. 4 mm: queda detrás del pladur (7,8 mm)
   fg.computeVertexNormals(); worldUV(fg,0.35);
   const fill=new THREE.Mesh(fg,M.mortar); fill.position.set(cx,cy,T/2-PD); fill.castShadow=true; fill.receiveShadow=true;
   [liner,cover,fill].forEach(m=>scene.add(m));
@@ -1208,7 +1216,8 @@ frameG.add(box(2*XI,0.004,0.012,M.polyam,0,SH+0.0005,-0.005));
 [-1,1].forEach(s=>frameG.add(box(0.0012,Hf-B-SH,0.012,M.polyam,s*(XI-0.0004),SH+(Hf-B-SH)/2,0.004)));
 frameG.add(box(2*XI,0.0012,0.012,M.polyam,0,Hf-B+0.0004,0.004));
 // tapajuntas interior: va en el marco y muere contra la cara interior de la pared
-{ const tz=-DF/2-0.005, tt=0.01, ox=W0/2+0.03, ix=Wf/2-0.032, top=H0+0.018;
+{ const tz=-DF/2-0.0055, tt=0.009,   // 1 mm separado de la pared: sin parpadeo entre las dos caras
+  ox=W0/2+0.03, ix=Wf/2-0.032, top=H0+0.018;
   [-1,1].forEach(sd=>{ const m=rbox(ox-ix,top,tt,0.002,M.lacquer,sd*(ix+ox)/2,top/2,tz); frameG.add(m); });
   frameG.add(rbox(2*ox,top-(Hf-0.032),tt,0.002,M.lacquer,0,(top+Hf-0.032)/2,tz)); }
 // (sin galce por dentro: la hoja abre hacia dentro y chocaría con él)
@@ -1996,7 +2005,7 @@ function update(t){
     } }
   if(mobile){ const d=camPos.distanceTo(camTgt); camPos.sub(camTgt).multiplyScalar(clamp(2.9/d,0.72,1.15)).add(camTgt); }
   // el sol entra rasante por la cara de la pared que estamos mirando (fuera o dentro)
-  { const k=THREE.MathUtils.smoothstep(camPos.z,-0.5,0.5); sun.position.set(-3.2,5.0,THREE.MathUtils.lerp(-3.0,1.2,k)); sun.intensity=THREE.MathUtils.lerp(1.8,2.3,k); bounce.position.z=THREE.MathUtils.lerp(-0.6,0.6,k); }
+  { const k=THREE.MathUtils.smoothstep(camPos.z,-0.5,0.5); sun.position.set(-3.2,5.0,THREE.MathUtils.lerp(-3.0,2.8,k)); sun.intensity=THREE.MathUtils.lerp(1.8,2.3,k); bounce.position.z=THREE.MathUtils.lerp(-0.6,0.6,k); }
   camera.position.copy(camPos); camera.lookAt(camTgt);
   // pantalla partida mientras se inflan las bolsas
   S.split = t>13.5 && t<16.55;
