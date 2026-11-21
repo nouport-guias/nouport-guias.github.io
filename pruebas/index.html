@@ -714,7 +714,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)
 new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
 /* ---------- lights ---------- */
-scene.add(new THREE.HemisphereLight(0xeef2f6, 0x6b6157, 0.45));
+const hemi=new THREE.HemisphereLight(0xeef2f6, 0x9a958e, 0.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1df, 2.3);
 sun.position.set(-3.2, 5.0, 1.2);
 sun.castShadow = true;
@@ -722,7 +722,9 @@ sun.shadow.mapSize.set(SMALL?2048:4096,SMALL?2048:4096);
 sun.shadow.camera.left=-3; sun.shadow.camera.right=3; sun.shadow.camera.top=3.4; sun.shadow.camera.bottom=-1.2;
 sun.shadow.camera.near=0.5; sun.shadow.camera.far=12;
 sun.shadow.bias=-0.0003; sun.shadow.normalBias=0.015; sun.shadow.radius=3;
-scene.add(sun);
+scene.add(sun); scene.add(sun.target);
+// rebote del suelo: ilumina las caras que miran hacia abajo (techo del hueco, bajos de las piezas)
+const bounce=new THREE.DirectionalLight(0xe6e0d6,0.55); bounce.position.set(0.4,-3,-0.6); scene.add(bounce);
 const fill = new THREE.DirectionalLight(0xdfe8ff, 0.45); fill.position.set(3,2,4); scene.add(fill);
 const inside = new THREE.PointLight(0xfff4e6, 6, 6, 2); inside.position.set(0.4,2.3,-1.8); scene.add(inside);
 
@@ -1362,8 +1364,9 @@ function makeBag(hosePts,bulbPos,bulbLying){
   return {g,pillow,bulb};
 }
 const BAG_TOP_Y=Hf-0.3, BAG_BOT_Y=0.3, BAG_Z=0.045;   // en la holgura, metidas desde el exterior
-const bagTop=makeBag([[0,0,BAG_D/2],[0,-0.01,0.12],[0.03,-0.2,0.17],[0.07,-0.55,0.15],[0.07,-0.68,0.14]],[0.07,-0.76,0.14],false);
-const bagBot=makeBag([[0,0,BAG_D/2],[0,-0.01,0.12],[-0.05,-0.15,0.2],[-0.14,-0.255,0.3],[-0.17,-0.262,0.31]],[-0.22,-0.264,0.33],true);
+// la manguera sale recta por la holgura y solo gira hacia los lados cuando ya está por delante de la fachada (z local > T/2+BAG_Z)
+const bagTop=makeBag([[0,0,BAG_D/2],[0,-0.004,0.12],[-0.004,-0.02,0.2],[0.03,-0.12,0.245],[0.075,-0.45,0.24],[0.085,-0.66,0.232]],[0.085,-0.75,0.232],false);
+const bagBot=makeBag([[0,0,BAG_D/2],[0,-0.004,0.12],[0.004,-0.03,0.2],[-0.06,-0.16,0.25],[-0.14,-0.255,0.3],[-0.17,-0.262,0.31]],[-0.22,-0.264,0.33],true);
 
 /* ---------- atornillador (paso 8) ---------- */
 const drill=new THREE.Group(); scene.add(drill);
@@ -1534,15 +1537,18 @@ function remate(){
   const zExt=T/2+NERV-DF, RT=0.015, ov=0.012, z0=-T/2-RT;
   const add=(x0,x1,y0,y1,za,zb)=>{ const g=new THREE.BoxGeometry(x1-x0,y1-y0,zb-za); g.translate((x0+x1)/2,(y0+y1)/2,(za+zb)/2); worldUV(g,0.96);
     const m=new THREE.Mesh(g,M.monocapa); m.castShadow=m.receiveShadow=true; obraExt.add(m); };
-  add(-WALL_X,-W0/2,0,WALL_H,z0,-T/2); add(W0/2,WALL_X,0,WALL_H,z0,-T/2); add(-W0/2,W0/2,H0,WALL_H,z0,-T/2);
   // canto del marco ya cuadrado (posición final tras las bolsas): está inclinado, así que el remate sigue esa línea
   const L=y=>(-Wi/2+G) - G*y/Hf, R=y=>L(y)+Wf;
-  const poly=(pts)=>{ const sh=new THREE.Shape(pts.map(([x,y])=>new THREE.Vector2(x,y)));
-    const g=new THREE.ExtrudeGeometry(sh,{depth:zExt-z0,bevelEnabled:false}); g.translate(0,0,z0); worldUV(g,0.96);
+  const poly=(pts,za,zb)=>{ const sh=new THREE.Shape(pts.map(([x,y])=>new THREE.Vector2(x,y)));
+    const g=new THREE.ExtrudeGeometry(sh,{depth:zb-za,bevelEnabled:false}); g.translate(0,0,za); worldUV(g,0.96);
     const m=new THREE.Mesh(g,M.monocapa); m.castShadow=m.receiveShadow=true; obraExt.add(m); };
-  poly([[-W0/2,0],[L(0)+ov,0],[L(Hf)+ov,Hf],[-W0/2,Hf]]);
-  poly([[R(0)-ov,0],[W0/2,0],[W0/2,Hf],[R(Hf)-ov,Hf]]);
-  add(-W0/2,W0/2,Hf-ov,H0,z0,zExt);
+  // cara de fachada de una sola pieza, con el hueco recortado siguiendo el marco: sin juntas a la vista
+  poly([[-WALL_X,0],[L(0)+ov,0],[L(Hf)+ov,Hf-ov],[R(Hf)-ov,Hf-ov],[R(0)-ov,0],[WALL_X,0],[WALL_X,WALL_H],[-WALL_X,WALL_H]],z0,-T/2);
+  // mochetas: quedan detrás de la cara de fachada, solo se ve su canto hacia el marco
+  const zb=z0+0.0004;
+  poly([[-W0/2-0.01,0],[L(0)+ov,0],[L(Hf)+ov,Hf],[-W0/2-0.01,Hf]],zb,zExt);
+  poly([[R(0)-ov,0],[W0/2+0.01,0],[W0/2+0.01,Hf],[R(Hf)-ov,Hf]],zb,zExt);
+  add(-W0/2-0.01,W0/2+0.01,Hf-ov,H0+0.01,zb,zExt);
   obraExt.userData.parts=obraExt.children.slice();
 }
 remate();
@@ -1706,16 +1712,18 @@ function loadDone(){ if(--pending<=0 && loadPill) loadPill.hidden=true; }
 const texL=new THREE.TextureLoader();
 function photoSet(name,rep,mats,opt={}){
   pending++;
-  Promise.all(['_diff','_nor','_arm'].map(s=>texL.loadAsync(ASSET+name+s+'.jpg'))).then(([d,n,a])=>{
+  const hi=!SMALL&&opt.hi!==false?'_2k':'';   // en ordenador, texturas de 2K: de cerca se ve el grano real
+  Promise.all(['_diff','_nor','_arm'].map(s=>texL.loadAsync(ASSET+name+hi+s+'.jpg'))).then(([d,n,a])=>{
     [d,n,a].forEach(t=>{ t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep); t.anisotropy=maxAniso; });
     d.colorSpace=THREE.SRGBColorSpace;
     mats.forEach(m=>{
       m.map=d; m.normalMap=n; m.aoMap=a; m.roughnessMap=a; m.roughness=opt.rough??1; m.bumpMap=null;
-      m.color.set(opt.tint??0xffffff); m.normalScale.set(opt.ns??1,opt.ns??1); m.aoMapIntensity=opt.ao??1; m.needsUpdate=true;
+      m.color.set(opt.tint??0xffffff); if(opt.boost) m.color.multiplyScalar(opt.boost); m.normalScale.set(opt.ns??1,opt.ns??1); m.aoMapIntensity=opt.ao??1; m.needsUpdate=true;
     });
   }).catch(()=>{}).finally(loadDone);
 }
 photoSet('plaster',0.96/2.0,[M.render],{tint:0xe9e6e1});
+photoSet('monocapa',0.96/1.2,[M.monocapa],{tint:0xfff6ea,ns:1.1,boost:1.32});
 photoSet('screed',2.5/3,[M.floor],{tint:0xdcd9d4});
 photoSet('screed',2/3,[M.slab],{tint:0xeeebe6});
 photoSet('screed',1,[M.screed],{tint:0xffffff});
@@ -1737,7 +1745,8 @@ if(!SMALL){
     import('three/addons/postprocessing/GTAOPass.js'),
     import('three/addons/postprocessing/OutputPass.js'),
   ]).then(([E,R,G,O])=>{
-    const c=new E.EffectComposer(renderer);
+    const rt=new THREE.WebGLRenderTarget(W*renderer.getPixelRatio(),H*renderer.getPixelRatio(),{type:THREE.HalfFloatType,samples:4});
+    const c=new E.EffectComposer(renderer,rt);
     c.setPixelRatio(renderer.getPixelRatio()); c.setSize(W,H);
     c.addPass(new R.RenderPass(scene,camera));
     const ao=new G.GTAOPass(scene,camera,W,H);
@@ -1893,6 +1902,8 @@ function update(t){
       camPos.lerp(cam,w27); camTgt.lerp(tgt,w27);
     } }
   if(mobile){ const d=camPos.distanceTo(camTgt); camPos.sub(camTgt).multiplyScalar(clamp(2.9/d,0.72,1.15)).add(camTgt); }
+  // el sol entra rasante por la cara de la pared que estamos mirando (fuera o dentro)
+  { const k=THREE.MathUtils.smoothstep(camPos.z,-0.5,0.5); sun.position.set(-3.2,5.0,THREE.MathUtils.lerp(-3.0,1.2,k)); sun.intensity=THREE.MathUtils.lerp(1.8,2.3,k); bounce.position.z=THREE.MathUtils.lerp(-0.6,0.6,k); }
   camera.position.copy(camPos); camera.lookAt(camTgt);
   // pantalla partida mientras se inflan las bolsas
   S.split = t>13.5 && t<16.55;
